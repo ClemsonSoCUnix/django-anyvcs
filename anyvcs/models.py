@@ -25,7 +25,7 @@ name_rx = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_.+-]+$')
 class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
   vcs = models.CharField(max_length=3, choices=VCS_CHOICES)
-  public_read_access = models.BooleanField()
+  public_rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='', blank=True)
 
   class Meta:
     verbose_name = 'Repository'

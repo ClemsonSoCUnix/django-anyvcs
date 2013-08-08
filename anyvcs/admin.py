@@ -18,7 +18,7 @@ class UserRightsAdmin(admin.ModelAdmin):
 
 class GroupRightsAdmin(admin.ModelAdmin):
   list_display = ['repo', 'group']
-  search_fields = ['repo__name', 'group__groupname']
+  search_fields = ['repo__name', 'group__name']
 
 admin.site.register(Repo, RepoAdmin)
 admin.site.register(UserRights, UserRightsAdmin)

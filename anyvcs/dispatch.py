@@ -65,12 +65,6 @@ def ssh_dispatch(access_url, username):
     mercurial.dispatch.dispatch(mercurial.dispatch.request(hgcmd))
     sys.exit()
 
-  # Bazaar
-  if argv[0] == 'bzr':
-    root, repos = get_repo_access(access_url, None, username, 'svn')
-    args = ['bzr', 'serve', '--inet', '--directory', root, '--allow-writes']
-    os.execvp(args[0], args)
-
   # Subversion
   if argv[0] == 'svnserve':
     root, repos = get_repo_access(access_url, None, username, 'svn')

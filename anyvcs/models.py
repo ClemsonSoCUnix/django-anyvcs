@@ -10,7 +10,6 @@ import shutil
 import subprocess
 
 VCS_CHOICES = (
-  ('bzr', 'Bazaar'),
   ('git', 'Git'),
   ('hg', 'Mercurial'),
   ('svn', 'Subversion'),
@@ -51,8 +50,6 @@ class Repo(models.Model):
         cmd = [settings.GIT, 'init', '--bare', self.path]
       elif self.vcs == 'hg':
         cmd = [settings.HG, 'init', self.path]
-      elif self.vcs == 'bzr':
-        cmd = [settings.BZR, 'init', self.path]
       elif self.vcs == 'svn':
         cmd = [settings.SVNADMIN, 'create', self.path]
       else:

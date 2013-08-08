@@ -2,7 +2,7 @@ from django.contrib import admin
 from models import Repo, UserRights, GroupRights
 
 class RepoAdmin(admin.ModelAdmin):
-  list_display = ['name', 'vcs']
+  list_display = ['__unicode__', 'vcs']
   list_filter = ['vcs']
   search_fields = ['name']
 
@@ -13,11 +13,11 @@ class RepoAdmin(admin.ModelAdmin):
       return []
 
 class UserRightsAdmin(admin.ModelAdmin):
-  list_display = ['repo', 'user']
+  list_display = ['__unicode__', 'repo', 'user', 'rights']
   search_fields = ['repo__name', 'user__username']
 
 class GroupRightsAdmin(admin.ModelAdmin):
-  list_display = ['repo', 'group']
+  list_display = ['__unicode__', 'repo', 'group', 'rights']
   search_fields = ['repo__name', 'group__name']
 
 admin.site.register(Repo, RepoAdmin)

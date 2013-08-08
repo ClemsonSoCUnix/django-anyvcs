@@ -36,6 +36,8 @@ def ssh_dispatch(access_url, username):
       die('Repository not specified')
     if repo_name[0] == '/':
       repo_name = repo_name[1:]
+    if repo_name.endswith('.git'):
+      repo_name = repo_name[:-4]
     access = get_repo_access(access_url, repo_name, username, 'git')
     if 'r' not in access.rights:
       die('Permission denied')

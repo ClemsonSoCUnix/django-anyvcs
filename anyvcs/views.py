@@ -29,19 +29,15 @@ def default_rights_function(repo, user):
     return 'r'
   return ''
 
-def repo_access_data(repo, user, relpath=False):
+def repo_access_data(repo, user):
   rights = None
   if settings.VCSREPO_RIGHTS_FUNCTION:
     rights = settings.VCSREPO_RIGHTS_FUNCTION(repo, user)
   if rights is None:
     rights = default_rights_function(repo, user)
-  if relpath:
-    path = repo.relpath
-  else:
-    path = repo.path
-  return { 'rights': rights, 'vcs': repo.vcs, 'path': path }
+  return { 'rights': rights, 'vcs': repo.vcs, 'path': repo.path }
 
-def access(request, repo=None):
+def access(request, repo):
   if not (settings.VCSREPO_HOSTS_ALLOW_FUNCTION or default_hosts_allow_function)(request):
     raise PermissionDenied
 
@@ -59,16 +55,10 @@ def access(request, repo=None):
   if vcs:
     qs = qs.filter(vcs=vcs)
 
-  if repo:
-    try:
-      repo = qs.get(name=repo)
-    except Repo.DoesNotExist:
-      message = 'Repository does not exist: %s\n' % repo
-      return HttpResponseNotFound(message, mimetype='text/plain')
-    data = repo_access_data(repo, user)
-  else:
-    repos = {}
-    for repo in qs.all():
-      repos[repo.name] = repo_access_data(repo, user, relpath=True)
-    data = {'root': settings.VCSREPO_ROOT, 'repos': repos}
+  try:
+    repo = qs.get(name=repo)
+  except Repo.DoesNotExist:
+    message = 'Repository does not exist: %s\n' % repo
+    return HttpResponseNotFound(message, mimetype='text/plain')
+  data = repo_access_data(repo, user)
   return HttpResponse(json.dumps(data), mimetype='application/json')

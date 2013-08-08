@@ -15,6 +15,9 @@ def die(message):
   sys.exit(1)
 
 def ssh_dispatch(access_url, username):
+  VCSREPO_ROOT = os.getenv('VCSREPO_ROOT')
+  assert VCSREPO_ROOT is not None, 'VCSREPO_ROOT is not set'
+
   cmd = os.getenv('SSH_ORIGINAL_COMMAND', '')
   try:
     argv = shlex.split(cmd)
@@ -67,8 +70,7 @@ def ssh_dispatch(access_url, username):
 
   # Subversion
   if argv[0] == 'svnserve':
-    root, repos = get_repo_access(access_url, None, username, 'svn')
-    args = ['svnserve', '-t', '-r', root]
+    args = ['svnserve', '--root', VCSREPO_ROOT, '--tunnel', '--tunnel-user', username]
     os.execvp(args[0], args)
 
   die('Command not allowed: %s' % cmd)
@@ -79,10 +81,7 @@ def get_repo_access(access_url, repo_name, username, vcs):
     query['u'] = username
   if vcs is not None:
     query['vcs'] = vcs
-  if repo_name is None:
-    url = '%s/?%s' % (access_url, urllib.urlencode(query))
-  else:
-    url = '%s/%s?%s' % (access_url, repo_name, urllib.urlencode(query))
+  url = '%s/%s?%s' % (access_url, repo_name, urllib.urlencode(query))
   response = urllib.urlopen(url)
   code = response.getcode()
   mime = response.info().gettype()
@@ -90,13 +89,7 @@ def get_repo_access(access_url, repo_name, username, vcs):
     if mime != 'application/json':
       die('Backend returned mimetype %s' % mime)
     data = json.load(response)
-    if repo_name is None:
-      repos = {}
-      for k,v in data['repos'].iteritems():
-        repos[k] = RepoAccess(**v)
-      return (data['root'], repos)
-    else:
-      return RepoAccess(**data)
+    return RepoAccess(**data)
   elif code == 404:
     if mime == 'text/plain':
       die(response.read())

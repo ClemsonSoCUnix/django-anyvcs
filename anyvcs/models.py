@@ -36,8 +36,6 @@ class Repo(models.Model):
 
   @property
   def relpath(self):
-    if self.vcs == 'git':
-      return self.name + '.git'
     return self.name
 
   @property

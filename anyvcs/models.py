@@ -24,7 +24,7 @@ name_rx = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_.+-]+$')
 
 class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
-  vcs = models.CharField(max_length=3, choices=VCS_CHOICES)
+  vcs = models.CharField(max_length=3, choices=VCS_CHOICES, default='git')
   public_rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='', blank=True)
 
   class Meta:
@@ -76,7 +76,7 @@ class Repo(models.Model):
 class UserRights(models.Model):
   repo = models.ForeignKey(Repo, db_index=True)
   user = models.ForeignKey(User, db_index=True)
-  rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES)
+  rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='rw')
 
   class Meta:
     unique_together = ('repo', 'user')
@@ -89,7 +89,7 @@ class UserRights(models.Model):
 class GroupRights(models.Model):
   repo = models.ForeignKey(Repo, db_index=True)
   group = models.ForeignKey(Group, db_index=True)
-  rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES)
+  rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='rw')
 
   class Meta:
     unique_together = ('repo', 'group')

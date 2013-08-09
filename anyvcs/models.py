@@ -14,7 +14,7 @@ VCS_CHOICES = (
   ('svn', 'Subversion'),
 )
 RIGHTS_CHOICES = (
-  ('-', 'None'),
+  ('-', 'Deny'),
   ('r', 'Read-Only'),
   ('rw', 'Read-Write'),
 )

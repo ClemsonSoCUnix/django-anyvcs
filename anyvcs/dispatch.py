@@ -44,7 +44,7 @@ def ssh_dispatch(access_url, username):
     if argv[0] == 'git-receive-pack' and 'w' not in access.rights:
       die('Permission denied (read only)')
     args = ['git', 'shell', '-c', "%s '%s'" % (argv[0], access.path)]
-    os.execvp(args[0], args)
+    os.execvp(os.getenv('GIT', 'git'), args)
 
   # Mercurial
   if argv[0] == 'hg':
@@ -73,7 +73,7 @@ def ssh_dispatch(access_url, username):
   # Subversion
   if argv[0] == 'svnserve':
     args = ['svnserve', '--root', VCSREPO_ROOT, '--tunnel', '--tunnel-user', username]
-    os.execvp(args[0], args)
+    os.execvp(os.getenv('SVNSERVE', 'svnserve'), args)
 
   die('Command not allowed: %s' % cmd)
 

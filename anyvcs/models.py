@@ -1,6 +1,6 @@
 from django.db import models
 from django.db.models import Q
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, pre_delete, post_delete
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from . import settings
@@ -141,7 +141,7 @@ class UserRights(models.Model):
   def post_save(self, created, **kwargs):
     self.repo.update_authz()
 
-  def post_delete(self, **kwargs):
+  def pre_delete(self, **kwargs):
     self.repo.update_authz()
 
 class GroupRights(models.Model):
@@ -160,11 +160,14 @@ class GroupRights(models.Model):
   def post_save(self, created, **kwargs):
     self.repo.update_authz()
 
-  def post_delete(self, **kwargs):
+  def pre_delete(self, **kwargs):
     self.repo.update_authz()
 
 def post_save_proxy(sender, instance, **kwargs):
   instance.post_save(**kwargs)
+
+def pre_delete_proxy(sender, instance, **kwargs):
+  instance.pre_delete(**kwargs)
 
 def post_delete_proxy(sender, instance, **kwargs):
   instance.post_delete(**kwargs)
@@ -175,8 +178,8 @@ post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=Repo)
 
 # UserRights signals
 post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=UserRights)
-post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=UserRights)
+pre_delete.connect(pre_delete_proxy, dispatch_uid=__name__, sender=UserRights)
 
 # GroupRights signals
 post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=GroupRights)
-post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=GroupRights)
+pre_delete.connect(pre_delete_proxy, dispatch_uid=__name__, sender=GroupRights)

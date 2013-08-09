@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.db.models.signals import post_save, post_delete
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
@@ -19,10 +20,11 @@ RIGHTS_CHOICES = (
   ('rw', 'Read-Write'),
 )
 
-name_rx = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_.+-]*$')
+name_rx = re.compile(r'^(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*/)*(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*)$')
 
 class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
+  path = models.CharField(max_length=100, unique=True, blank=True)
   vcs = models.CharField(max_length=3, choices=VCS_CHOICES, default='git')
   public_rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='-')
 
@@ -34,26 +36,22 @@ class Repo(models.Model):
     return self.name
 
   @property
-  def relpath(self):
-    return self.name
-
-  @property
-  def path(self):
-    return os.path.join(settings.VCSREPO_ROOT, self.relpath)
+  def abspath(self):
+    return os.path.join(settings.VCSREPO_ROOT, self.path)
 
   def post_save(self, created, **kwargs):
     if created:
       if self.vcs == 'git':
-        cmd = [settings.GIT, 'init', '--bare', self.path]
+        cmd = [settings.GIT, 'init', '--bare', self.abspath]
       elif self.vcs == 'hg':
-        cmd = [settings.HG, 'init', self.path]
+        cmd = [settings.HG, 'init', self.abspath]
       elif self.vcs == 'svn':
-        cmd = [settings.SVNADMIN, 'create', self.path]
+        cmd = [settings.SVNADMIN, 'create', self.abspath]
       else:
         assert False, self.vcs
       subprocess.check_call(cmd)
     if self.vcs == 'svn':
-      conf_path = os.path.join(self.path, 'conf', 'svnserve.conf')
+      conf_path = os.path.join(self.abspath, 'conf', 'svnserve.conf')
       with open(conf_path, 'w') as conf:
         conf.write('[general]\n')
         d = { '-': 'none', 'r': 'read', 'rw': 'write' }
@@ -62,8 +60,8 @@ class Repo(models.Model):
       self.update_authz()
 
   def post_delete(self, **kwargs):
-    shutil.rmtree(self.path)
-    d = os.path.dirname(self.path)
+    shutil.rmtree(self.abspath)
+    d = os.path.dirname(self.abspath)
     while d != settings.VCSREPO_ROOT:
       try:
         os.rmdir(d)
@@ -75,15 +73,40 @@ class Repo(models.Model):
         break
 
   def clean_fields(self, exclude=None):
+    err = {}
     if not exclude or 'name' not in exclude:
       if not name_rx.match(self.name):
-        msg = 'Invalid name'
-        raise ValidationError({'name': [msg]})
+        err['name'] = ['Invalid name']
+    if not exclude or 'path' not in exclude:
+      if self.path:
+        if not name_rx.match(self.path):
+          err['path'] = ['Invalid path']
+      else:
+        self.path = self.name
+      # verify we aren't nesting repos (excluding hg parents, subrepos are ok)
+      # is this a parent directory of an existing repo?
+      if self.vcs != 'hg':
+        qs = type(self).objects.filter(path__startswith=self.path+'/')
+        if qs.count() != 0:
+          msg = 'This an ancestor of another repository which does not support nesting.'
+          err.setdefault('path', []).append(msg)
+      # is this a subdirectory of an existing repo?
+      updirs = []
+      p = self.path
+      while p:
+        p = os.path.dirname(p)
+        updirs.append(p)
+      qs = type(self).objects.filter(~Q(vcs='hg')).filter(path__in=updirs)
+      if qs.count() != 0:
+        msg = 'This a subdirectory of another repository which does not support nesting.'
+        err.setdefault('path', []).append(msg)
+    if err:
+      raise ValidationError(err)
 
   def update_authz(self):
     if self.vcs == 'svn':
       import fcntl
-      authz_path = os.path.join(self.path, 'conf', 'authz')
+      authz_path = os.path.join(self.abspath, 'conf', 'authz')
       d = { '-': '' }
       def rights(r):
         return d.get(r, r)

@@ -33,7 +33,7 @@ def repo_access_data(repo, user):
     rights = settings.VCSREPO_RIGHTS_FUNCTION(repo, user)
   if rights is None:
     rights = default_rights_function(repo, user)
-  return { 'rights': rights, 'vcs': repo.vcs, 'path': repo.path }
+  return { 'rights': rights, 'vcs': repo.vcs, 'path': repo.abspath }
 
 def access(request, repo):
   if not (settings.VCSREPO_HOSTS_ALLOW_FUNCTION or default_hosts_allow_function)(request):

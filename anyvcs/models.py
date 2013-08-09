@@ -14,7 +14,7 @@ VCS_CHOICES = (
   ('svn', 'Subversion'),
 )
 RIGHTS_CHOICES = (
-  ('', 'None'),
+  ('-', 'None'),
   ('r', 'Read-Only'),
   ('rw', 'Read-Write'),
 )
@@ -24,7 +24,7 @@ name_rx = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_.+-]*$')
 class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
   vcs = models.CharField(max_length=3, choices=VCS_CHOICES, default='git')
-  public_rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='', blank=True)
+  public_rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='-')
 
   class Meta:
     verbose_name = 'Repository'
@@ -56,7 +56,7 @@ class Repo(models.Model):
       conf_path = os.path.join(self.path, 'conf', 'svnserve.conf')
       with open(conf_path, 'w') as conf:
         conf.write('[general]\n')
-        d = { '': 'none', 'r': 'read', 'rw': 'write' }
+        d = { '-': 'none', 'r': 'read', 'rw': 'write' }
         conf.write('anon-access = %s\n' % d[self.public_rights])
         conf.write('authz-db = authz\n')
       self.update_authz()
@@ -83,6 +83,9 @@ class Repo(models.Model):
   def update_authz(self):
     if self.vcs == 'svn':
       authz_path = os.path.join(self.path, 'conf', 'authz')
+      d = { '-': '' }
+      def rights(r):
+        return d.get(r, r)
       with open(authz_path, 'w') as authz:
         authz.write('[groups]\n')
         for gr in self.grouprights_set.all():
@@ -90,10 +93,10 @@ class Repo(models.Model):
           authz.write('@%s = %s\n' % (gr.group.name, members))
         authz.write('\n[/]\n')
         for ur in self.userrights_set.all():
-          authz.write('%s = %s\n' % (ur.user.username, ur.rights))
+          authz.write('%s = %s\n' % (ur.user.username, rights(ur.rights)))
         for gr in self.grouprights_set.all():
-          authz.write('@%s = %s\n' % (gr.group.name, gr.rights))
-        authz.write('* = %s\n' % self.public_rights)
+          authz.write('@%s = %s\n' % (gr.group.name, rights(gr.rights)))
+        authz.write('* = %s\n' % rights(self.public_rights))
 
 class UserRights(models.Model):
   repo = models.ForeignKey(Repo, db_index=True)

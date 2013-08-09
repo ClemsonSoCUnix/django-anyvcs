@@ -82,11 +82,15 @@ class Repo(models.Model):
 
   def update_authz(self):
     if self.vcs == 'svn':
+      import fcntl
       authz_path = os.path.join(self.path, 'conf', 'authz')
       d = { '-': '' }
       def rights(r):
         return d.get(r, r)
-      with open(authz_path, 'w') as authz:
+      with open(authz_path, 'a') as authz:
+        authz.seek(0)
+        fcntl.lockf(authz, fcntl.LOCK_EX)
+        authz.truncate()
         authz.write('[groups]\n')
         for gr in self.grouprights_set.all():
           members = ','.join((u.username for u in gr.group.user_set.all()))

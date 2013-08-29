@@ -100,6 +100,10 @@ class Repo(models.Model):
       if qs.count() != 0:
         msg = 'This a subdirectory of another repository which does not support nesting.'
         err.setdefault('path', []).append(msg)
+    if not exclude or 'vcs' not in exclude:
+      if not filter(lambda x: x[0] == self.vcs, VCS_CHOICES):
+        msg = 'Not a valid VCS type'
+        err.setdefault('vcs', []).append(msg)
     if err:
       raise ValidationError(err)
 

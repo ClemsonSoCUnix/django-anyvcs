@@ -42,7 +42,7 @@ class Repo(models.Model):
   def post_save(self, created, **kwargs):
     if created:
       if self.vcs == 'git':
-        cmd = [settings.GIT, 'init', '--bare', self.abspath]
+        cmd = [settings.GIT, 'init', '--quiet', '--bare', self.abspath]
       elif self.vcs == 'hg':
         cmd = [settings.HG, 'init', self.abspath]
       elif self.vcs == 'svn':

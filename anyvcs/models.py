@@ -1,3 +1,20 @@
+# Copyright 2013 Scott Duckworth
+#
+# This file is part of django-anyvcs.
+#
+# django-anyvcs is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# django-anyvcs is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with django-anyvcs.  If not, see <http://www.gnu.org/licenses/>.
+
 from django.db import models
 from django.db.models import Q
 from django.db.models.signals import post_save, pre_delete, post_delete
@@ -42,7 +59,7 @@ class Repo(models.Model):
   def post_save(self, created, **kwargs):
     if created:
       if self.vcs == 'git':
-        cmd = [settings.GIT, 'init', '--bare', self.abspath]
+        cmd = [settings.GIT, 'init', '--quiet', '--bare', self.abspath]
       elif self.vcs == 'hg':
         cmd = [settings.HG, 'init', self.abspath]
       elif self.vcs == 'svn':
@@ -78,28 +95,36 @@ class Repo(models.Model):
       if not name_rx.match(self.name):
         err['name'] = ['Invalid name']
     if not exclude or 'path' not in exclude:
-      if self.path:
-        if not name_rx.match(self.path):
-          err['path'] = ['Invalid path']
-      else:
+      if not self.path:
         self.path = self.name
-      # verify we aren't nesting repos (excluding hg parents, subrepos are ok)
-      # is this a parent directory of an existing repo?
-      if self.vcs != 'hg':
-        qs = type(self).objects.filter(path__startswith=self.path+'/')
+      if not name_rx.match(self.path):
+        err['path'] = ['Invalid path']
+      if 'path' not in err:
+        # verify we aren't nesting repos (excluding hg parents, subrepos are ok)
+        # is this a parent directory of an existing repo?
+        if self.vcs != 'hg':
+          qs = type(self).objects.filter(path__startswith=self.path+'/')
+          if qs.count() != 0:
+            msg = 'This an ancestor of another repository which does not support nesting.'
+            err.setdefault('path', []).append(msg)
+        # is this a subdirectory of an existing repo?
+        updirs = []
+        p = self.path
+        while p:
+          p = os.path.dirname(p)
+          updirs.append(p)
+        qs = type(self).objects.filter(~Q(vcs='hg')).filter(path__in=updirs)
         if qs.count() != 0:
-          msg = 'This an ancestor of another repository which does not support nesting.'
+          msg = 'This a subdirectory of another repository which does not support nesting.'
           err.setdefault('path', []).append(msg)
-      # is this a subdirectory of an existing repo?
-      updirs = []
-      p = self.path
-      while p:
-        p = os.path.dirname(p)
-        updirs.append(p)
-      qs = type(self).objects.filter(~Q(vcs='hg')).filter(path__in=updirs)
-      if qs.count() != 0:
-        msg = 'This a subdirectory of another repository which does not support nesting.'
-        err.setdefault('path', []).append(msg)
+    if not exclude or 'vcs' not in exclude:
+      if not filter(lambda x: x[0] == self.vcs, VCS_CHOICES):
+        msg = 'Not a valid VCS type'
+        err.setdefault('vcs', []).append(msg)
+    if not exclude or 'public_rights' not in exclude:
+      if not filter(lambda x: x[0] == self.public_rights, RIGHTS_CHOICES):
+        msg = 'Not a valid public_rights value'
+        err.setdefault('public_rights', []).append(msg)
     if err:
       raise ValidationError(err)
 

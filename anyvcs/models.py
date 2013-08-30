@@ -78,28 +78,28 @@ class Repo(models.Model):
       if not name_rx.match(self.name):
         err['name'] = ['Invalid name']
     if not exclude or 'path' not in exclude:
-      if self.path:
-        if not name_rx.match(self.path):
-          err['path'] = ['Invalid path']
-      else:
+      if not self.path:
         self.path = self.name
-      # verify we aren't nesting repos (excluding hg parents, subrepos are ok)
-      # is this a parent directory of an existing repo?
-      if self.vcs != 'hg':
-        qs = type(self).objects.filter(path__startswith=self.path+'/')
+      if not name_rx.match(self.path):
+        err['path'] = ['Invalid path']
+      if 'path' not in err:
+        # verify we aren't nesting repos (excluding hg parents, subrepos are ok)
+        # is this a parent directory of an existing repo?
+        if self.vcs != 'hg':
+          qs = type(self).objects.filter(path__startswith=self.path+'/')
+          if qs.count() != 0:
+            msg = 'This an ancestor of another repository which does not support nesting.'
+            err.setdefault('path', []).append(msg)
+        # is this a subdirectory of an existing repo?
+        updirs = []
+        p = self.path
+        while p:
+          p = os.path.dirname(p)
+          updirs.append(p)
+        qs = type(self).objects.filter(~Q(vcs='hg')).filter(path__in=updirs)
         if qs.count() != 0:
-          msg = 'This an ancestor of another repository which does not support nesting.'
+          msg = 'This a subdirectory of another repository which does not support nesting.'
           err.setdefault('path', []).append(msg)
-      # is this a subdirectory of an existing repo?
-      updirs = []
-      p = self.path
-      while p:
-        p = os.path.dirname(p)
-        updirs.append(p)
-      qs = type(self).objects.filter(~Q(vcs='hg')).filter(path__in=updirs)
-      if qs.count() != 0:
-        msg = 'This a subdirectory of another repository which does not support nesting.'
-        err.setdefault('path', []).append(msg)
     if not exclude or 'vcs' not in exclude:
       if not filter(lambda x: x[0] == self.vcs, VCS_CHOICES):
         msg = 'Not a valid VCS type'

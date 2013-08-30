@@ -7,5 +7,5 @@ git add anyvcs/__init__.py
 git commit -m 'bump version'
 python setup.py sdist
 git flow release finish X.Y.Z
-git push origin master X.Y.Z
+git push origin master develop X.Y.Z
 upload dist/django-anyvcs-X.Y.Z.tar.gz to bitbucket

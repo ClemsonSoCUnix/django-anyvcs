@@ -44,6 +44,8 @@ class Repo(models.Model):
   path = models.CharField(max_length=100, unique=True, blank=True)
   vcs = models.CharField(max_length=3, choices=VCS_CHOICES, default='git')
   public_rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='-')
+  created = models.DateTimeField(auto_now_add=True, null=True)
+  last_modified = models.DateTimeField(auto_now=True, null=True)
 
   class Meta:
     verbose_name = 'Repository'
@@ -154,6 +156,8 @@ class UserRights(models.Model):
   repo = models.ForeignKey(Repo, db_index=True)
   user = models.ForeignKey(User, db_index=True)
   rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='rw')
+  created = models.DateTimeField(auto_now_add=True, null=True)
+  last_modified = models.DateTimeField(auto_now=True, null=True)
 
   class Meta:
     unique_together = ('repo', 'user')
@@ -173,6 +177,8 @@ class GroupRights(models.Model):
   repo = models.ForeignKey(Repo, db_index=True)
   group = models.ForeignKey(Group, db_index=True)
   rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='rw')
+  created = models.DateTimeField(auto_now_add=True, null=True)
+  last_modified = models.DateTimeField(auto_now=True, null=True)
 
   class Meta:
     unique_together = ('repo', 'group')

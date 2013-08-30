@@ -1,1 +1,3 @@
 *.py[coa]
+/testproject/test.db
+/testproject/repo-root

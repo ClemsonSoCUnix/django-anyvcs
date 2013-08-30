@@ -104,6 +104,10 @@ class Repo(models.Model):
       if not filter(lambda x: x[0] == self.vcs, VCS_CHOICES):
         msg = 'Not a valid VCS type'
         err.setdefault('vcs', []).append(msg)
+    if not exclude or 'public_rights' not in exclude:
+      if not filter(lambda x: x[0] == self.public_rights, RIGHTS_CHOICES):
+        msg = 'Not a valid public_rights value'
+        err.setdefault('public_rights', []).append(msg)
     if err:
       raise ValidationError(err)
 

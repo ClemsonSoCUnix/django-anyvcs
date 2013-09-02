@@ -172,9 +172,13 @@ class UserRights(models.Model):
 
   def post_save(self, created, **kwargs):
     self.repo.update_authz()
+    self.repo.last_modified = self.last_modified
+    self.repo.save()
 
   def pre_delete(self, **kwargs):
     self.repo.update_authz()
+    self.repo.last_modified = self.last_modified
+    self.repo.save()
 
 class GroupRights(models.Model):
   repo = models.ForeignKey(Repo, db_index=True)
@@ -193,9 +197,13 @@ class GroupRights(models.Model):
 
   def post_save(self, created, **kwargs):
     self.repo.update_authz()
+    self.repo.last_modified = self.last_modified
+    self.repo.save()
 
   def pre_delete(self, **kwargs):
     self.repo.update_authz()
+    self.repo.last_modified = self.last_modified
+    self.repo.save()
 
 def post_save_proxy(sender, instance, **kwargs):
   instance.post_save(**kwargs)

@@ -129,9 +129,9 @@ class Repo(models.Model):
       import fcntl
       conf_path = os.path.join(self.abspath, 'conf', 'svnserve.conf')
       with open(conf_path, 'a') as conf:
-        authz.seek(0)
-        fcntl.lockf(authz, fcntl.LOCK_EX)
-        authz.truncate()
+        conf.seek(0)
+        fcntl.lockf(conf, fcntl.LOCK_EX)
+        conf.truncate()
         conf.write('[general]\n')
         d = { '-': 'none', 'r': 'read', 'rw': 'write' }
         conf.write('anon-access = %s\n' % d[self.public_rights])

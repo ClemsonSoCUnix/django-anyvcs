@@ -70,12 +70,6 @@ class Repo(models.Model):
         assert False, self.vcs
       subprocess.check_call(cmd)
     if self.vcs == 'svn':
-      conf_path = os.path.join(self.abspath, 'conf', 'svnserve.conf')
-      with open(conf_path, 'w') as conf:
-        conf.write('[general]\n')
-        d = { '-': 'none', 'r': 'read', 'rw': 'write' }
-        conf.write('anon-access = %s\n' % d[self.public_rights])
-        conf.write('authz-db = authz\n')
       self.update_authz()
 
   def post_delete(self, **kwargs):
@@ -133,6 +127,15 @@ class Repo(models.Model):
   def update_authz(self):
     if self.vcs == 'svn':
       import fcntl
+      conf_path = os.path.join(self.abspath, 'conf', 'svnserve.conf')
+      with open(conf_path, 'a') as conf:
+        conf.seek(0)
+        fcntl.lockf(conf, fcntl.LOCK_EX)
+        conf.truncate()
+        conf.write('[general]\n')
+        d = { '-': 'none', 'r': 'read', 'rw': 'write' }
+        conf.write('anon-access = %s\n' % d[self.public_rights])
+        conf.write('authz-db = authz\n')
       authz_path = os.path.join(self.abspath, 'conf', 'authz')
       d = { '-': '' }
       def rights(r):
@@ -169,9 +172,13 @@ class UserRights(models.Model):
 
   def post_save(self, created, **kwargs):
     self.repo.update_authz()
+    self.repo.last_modified = self.last_modified
+    self.repo.save()
 
   def pre_delete(self, **kwargs):
     self.repo.update_authz()
+    self.repo.last_modified = self.last_modified
+    self.repo.save()
 
 class GroupRights(models.Model):
   repo = models.ForeignKey(Repo, db_index=True)
@@ -190,9 +197,13 @@ class GroupRights(models.Model):
 
   def post_save(self, created, **kwargs):
     self.repo.update_authz()
+    self.repo.last_modified = self.last_modified
+    self.repo.save()
 
   def pre_delete(self, **kwargs):
     self.repo.update_authz()
+    self.repo.last_modified = self.last_modified
+    self.repo.save()
 
 def post_save_proxy(sender, instance, **kwargs):
   instance.post_save(**kwargs)

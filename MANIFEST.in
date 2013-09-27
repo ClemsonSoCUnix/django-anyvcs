@@ -3,4 +3,4 @@ include COPYING
 include COPYING.LESSER
 include README.md
 include ssh_dispatch.py
-recursive-include anyvcs/migrations *.py
+recursive-include django_anyvcs/migrations *.py

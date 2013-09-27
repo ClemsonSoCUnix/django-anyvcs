@@ -48,7 +48,7 @@ class Repo(models.Model):
   last_modified = models.DateTimeField(auto_now=True, null=True)
 
   class Meta:
-    app_label = 'anyvcs'
+    db_table = 'anyvcs_repo'
     verbose_name = 'Repository'
     verbose_name_plural = 'Repositories'
 
@@ -164,7 +164,7 @@ class UserRights(models.Model):
   last_modified = models.DateTimeField(auto_now=True, null=True)
 
   class Meta:
-    app_label = 'anyvcs'
+    db_table = 'anyvcs_userrights'
     unique_together = ('repo', 'user')
     verbose_name = 'User Access Rights'
     verbose_name_plural = 'User Access Rights'
@@ -190,7 +190,7 @@ class GroupRights(models.Model):
   last_modified = models.DateTimeField(auto_now=True, null=True)
 
   class Meta:
-    app_label = 'anyvcs'
+    db_table = 'anyvcs_grouprights'
     unique_together = ('repo', 'group')
     verbose_name = 'Group Access Rights'
     verbose_name_plural = 'Group Access Rights'

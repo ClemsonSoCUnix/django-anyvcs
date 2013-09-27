@@ -17,6 +17,6 @@
 
 from django.conf.urls.defaults import patterns, url
 
-urlpatterns = patterns('anyvcs.views',
+urlpatterns = patterns('django_anyvcs.views',
   url(r'^access/(?P<repo>.+)$', 'access'),
 )

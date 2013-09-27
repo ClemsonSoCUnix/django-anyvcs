@@ -20,8 +20,9 @@ from django.test.client import Client
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
-from anyvcs.models import Repo, UserRights, GroupRights
-from anyvcs import settings
+from django_anyvcs.models import Repo, UserRights, GroupRights
+from django_anyvcs import settings
+import anyvcs.git, anyvcs.hg, anyvcs.svn
 import json
 import os
 import shutil
@@ -65,6 +66,7 @@ class CreateRepoTestCase(BaseTestCase):
     repo.save()
     self.assertEqual(repo.path, 'b')
     self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'b'))
+    self.assertIsInstance(repo.repo, anyvcs.git.GitRepo)
 
   def test_git_without_path(self):
     repo = Repo(name='a', vcs='git')
@@ -72,6 +74,7 @@ class CreateRepoTestCase(BaseTestCase):
     repo.save()
     self.assertEqual(repo.path, 'a')
     self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'a'))
+    self.assertIsInstance(repo.repo, anyvcs.git.GitRepo)
 
   def test_hg(self):
     repo = Repo(name='a', path='b', vcs='hg')
@@ -79,6 +82,7 @@ class CreateRepoTestCase(BaseTestCase):
     repo.save()
     self.assertEqual(repo.path, 'b')
     self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'b'))
+    self.assertIsInstance(repo.repo, anyvcs.hg.HgRepo)
 
   def test_hg_without_path(self):
     repo = Repo(name='a', vcs='hg')
@@ -86,6 +90,7 @@ class CreateRepoTestCase(BaseTestCase):
     repo.save()
     self.assertEqual(repo.path, 'a')
     self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'a'))
+    self.assertIsInstance(repo.repo, anyvcs.hg.HgRepo)
 
   def test_svn(self):
     repo = Repo(name='a', path='b', vcs='svn')
@@ -93,6 +98,7 @@ class CreateRepoTestCase(BaseTestCase):
     repo.save()
     self.assertEqual(repo.path, 'b')
     self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'b'))
+    self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
 
   def test_svn_without_path(self):
     repo = Repo(name='a', vcs='svn')
@@ -100,6 +106,7 @@ class CreateRepoTestCase(BaseTestCase):
     repo.save()
     self.assertEqual(repo.path, 'a')
     self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'a'))
+    self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
 
   def test_public_deny(self):
     repo = Repo(name='a', path='a', vcs='git', public_rights='-')
@@ -133,7 +140,7 @@ class LookupTestCase(BaseTestCase):
         public_rights = public_rights,
       )
       client = Client()
-      url = reverse('anyvcs.views.access', args=(repo.name,))
+      url = reverse('django_anyvcs.views.access', args=(repo.name,))
       response = client.get(url)
       self.assertEqual(response.status_code, 200)
       self.assertIn('Content-Type', response)
@@ -157,7 +164,7 @@ class LookupTestCase(BaseTestCase):
         public_rights = public_rights,
       )
       client = Client()
-      url = reverse('anyvcs.views.access', args=(repo.name,))
+      url = reverse('django_anyvcs.views.access', args=(repo.name,))
       response = client.get(url, {'u': self.user1.username})
       self.assertEqual(response.status_code, 200)
       self.assertIn('Content-Type', response)
@@ -187,7 +194,7 @@ class LookupTestCase(BaseTestCase):
           rights = user_rights,
         )
         client = Client()
-        url = reverse('anyvcs.views.access', args=(repo.name,))
+        url = reverse('django_anyvcs.views.access', args=(repo.name,))
         response = client.get(url, {'u': self.user1.username})
         self.assertEqual(response.status_code, 200)
         self.assertIn('Content-Type', response)
@@ -217,7 +224,7 @@ class LookupTestCase(BaseTestCase):
           rights = group_rights,
         )
         client = Client()
-        url = reverse('anyvcs.views.access', args=(repo.name,))
+        url = reverse('django_anyvcs.views.access', args=(repo.name,))
         response = client.get(url, {'u': self.user1.username})
         self.assertEqual(response.status_code, 200)
         self.assertIn('Content-Type', response)
@@ -253,7 +260,7 @@ class LookupTestCase(BaseTestCase):
           rights = group_rights,
         )
         client = Client()
-        url = reverse('anyvcs.views.access', args=(repo.name,))
+        url = reverse('django_anyvcs.views.access', args=(repo.name,))
         response = client.get(url, {'u': self.user1.username})
         self.assertEqual(response.status_code, 200)
         self.assertIn('Content-Type', response)
@@ -281,7 +288,7 @@ class LookupTestCase(BaseTestCase):
         return rights
       settings.VCSREPO_RIGHTS_FUNCTION = f
       client = Client()
-      url = reverse('anyvcs.views.access', args=(repo.name,))
+      url = reverse('django_anyvcs.views.access', args=(repo.name,))
       response = client.get(url, {'u': self.user1.username})
       self.assertEqual(response.status_code, 200)
       self.assertIn('Content-Type', response)

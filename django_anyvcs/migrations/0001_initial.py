@@ -15,17 +15,21 @@ class Migration(SchemaMigration):
             ('path', self.gf('django.db.models.fields.CharField')(unique=True, max_length=100, blank=True)),
             ('vcs', self.gf('django.db.models.fields.CharField')(default='git', max_length=3)),
             ('public_rights', self.gf('django.db.models.fields.CharField')(default='-', max_length=2)),
+            ('created', self.gf('django.db.models.fields.DateTimeField')(auto_now_add=True, null=True, blank=True)),
+            ('last_modified', self.gf('django.db.models.fields.DateTimeField')(auto_now=True, null=True, blank=True)),
         ))
-        db.send_create_signal('anyvcs', ['Repo'])
+        db.send_create_signal('django_anyvcs', ['Repo'])
 
         # Adding model 'UserRights'
         db.create_table('anyvcs_userrights', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('repo', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['anyvcs.Repo'])),
+            ('repo', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['django_anyvcs.Repo'])),
             ('user', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['auth.User'])),
             ('rights', self.gf('django.db.models.fields.CharField')(default='rw', max_length=2)),
+            ('created', self.gf('django.db.models.fields.DateTimeField')(auto_now_add=True, null=True, blank=True)),
+            ('last_modified', self.gf('django.db.models.fields.DateTimeField')(auto_now=True, null=True, blank=True)),
         ))
-        db.send_create_signal('anyvcs', ['UserRights'])
+        db.send_create_signal('django_anyvcs', ['UserRights'])
 
         # Adding unique constraint on 'UserRights', fields ['repo', 'user']
         db.create_unique('anyvcs_userrights', ['repo_id', 'user_id'])
@@ -33,11 +37,13 @@ class Migration(SchemaMigration):
         # Adding model 'GroupRights'
         db.create_table('anyvcs_grouprights', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('repo', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['anyvcs.Repo'])),
+            ('repo', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['django_anyvcs.Repo'])),
             ('group', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['auth.Group'])),
             ('rights', self.gf('django.db.models.fields.CharField')(default='rw', max_length=2)),
+            ('created', self.gf('django.db.models.fields.DateTimeField')(auto_now_add=True, null=True, blank=True)),
+            ('last_modified', self.gf('django.db.models.fields.DateTimeField')(auto_now=True, null=True, blank=True)),
         ))
-        db.send_create_signal('anyvcs', ['GroupRights'])
+        db.send_create_signal('django_anyvcs', ['GroupRights'])
 
         # Adding unique constraint on 'GroupRights', fields ['repo', 'group']
         db.create_unique('anyvcs_grouprights', ['repo_id', 'group_id'])
@@ -62,28 +68,6 @@ class Migration(SchemaMigration):
 
 
     models = {
-        'anyvcs.grouprights': {
-            'Meta': {'unique_together': "(('repo', 'group'),)", 'object_name': 'GroupRights'},
-            'group': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['auth.Group']"}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'repo': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['anyvcs.Repo']"}),
-            'rights': ('django.db.models.fields.CharField', [], {'default': "'rw'", 'max_length': '2'})
-        },
-        'anyvcs.repo': {
-            'Meta': {'object_name': 'Repo'},
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'name': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '100', 'db_index': 'True'}),
-            'path': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '100', 'blank': 'True'}),
-            'public_rights': ('django.db.models.fields.CharField', [], {'default': "'-'", 'max_length': '2'}),
-            'vcs': ('django.db.models.fields.CharField', [], {'default': "'git'", 'max_length': '3'})
-        },
-        'anyvcs.userrights': {
-            'Meta': {'unique_together': "(('repo', 'user'),)", 'object_name': 'UserRights'},
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'repo': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['anyvcs.Repo']"}),
-            'rights': ('django.db.models.fields.CharField', [], {'default': "'rw'", 'max_length': '2'}),
-            'user': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['auth.User']"})
-        },
         'auth.group': {
             'Meta': {'object_name': 'Group'},
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
@@ -119,7 +103,35 @@ class Migration(SchemaMigration):
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'model': ('django.db.models.fields.CharField', [], {'max_length': '100'}),
             'name': ('django.db.models.fields.CharField', [], {'max_length': '100'})
+        },
+        'django_anyvcs.grouprights': {
+            'Meta': {'unique_together': "(('repo', 'group'),)", 'object_name': 'GroupRights', 'db_table': "'anyvcs_grouprights'"},
+            'created': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'null': 'True', 'blank': 'True'}),
+            'group': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['auth.Group']"}),
+            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'last_modified': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'null': 'True', 'blank': 'True'}),
+            'repo': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['django_anyvcs.Repo']"}),
+            'rights': ('django.db.models.fields.CharField', [], {'default': "'rw'", 'max_length': '2'})
+        },
+        'django_anyvcs.repo': {
+            'Meta': {'object_name': 'Repo', 'db_table': "'anyvcs_repo'"},
+            'created': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'null': 'True', 'blank': 'True'}),
+            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'last_modified': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'null': 'True', 'blank': 'True'}),
+            'name': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '100', 'db_index': 'True'}),
+            'path': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '100', 'blank': 'True'}),
+            'public_rights': ('django.db.models.fields.CharField', [], {'default': "'-'", 'max_length': '2'}),
+            'vcs': ('django.db.models.fields.CharField', [], {'default': "'git'", 'max_length': '3'})
+        },
+        'django_anyvcs.userrights': {
+            'Meta': {'unique_together': "(('repo', 'user'),)", 'object_name': 'UserRights', 'db_table': "'anyvcs_userrights'"},
+            'created': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'null': 'True', 'blank': 'True'}),
+            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'last_modified': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'null': 'True', 'blank': 'True'}),
+            'repo': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['django_anyvcs.Repo']"}),
+            'rights': ('django.db.models.fields.CharField', [], {'default': "'rw'", 'max_length': '2'}),
+            'user': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['auth.User']"})
         }
     }
 
-    complete_apps = ['anyvcs']
+    complete_apps = ['django_anyvcs']

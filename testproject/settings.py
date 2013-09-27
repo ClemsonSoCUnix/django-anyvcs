@@ -124,7 +124,7 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'django.contrib.admindocs',
     'south',
-    'anyvcs',
+    'django_anyvcs',
     'sshkey',
 )
 

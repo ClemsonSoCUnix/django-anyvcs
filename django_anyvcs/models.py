@@ -21,6 +21,7 @@ from django.db.models.signals import post_save, pre_delete, post_delete
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from . import settings
+import anyvcs
 import os
 import re
 import shutil
@@ -48,6 +49,7 @@ class Repo(models.Model):
   last_modified = models.DateTimeField(auto_now=True, null=True)
 
   class Meta:
+    db_table = 'anyvcs_repo'
     verbose_name = 'Repository'
     verbose_name_plural = 'Repositories'
 
@@ -58,17 +60,17 @@ class Repo(models.Model):
   def abspath(self):
     return os.path.join(settings.VCSREPO_ROOT, self.path)
 
+  @property
+  def repo(self):
+    try:
+      return self._repo
+    except AttributeError:
+      self._repo = anyvcs.open(self.abspath, self.vcs)
+      return self._repo
+
   def post_save(self, created, **kwargs):
     if created:
-      if self.vcs == 'git':
-        cmd = [settings.GIT, 'init', '--quiet', '--bare', self.abspath]
-      elif self.vcs == 'hg':
-        cmd = [settings.HG, 'init', self.abspath]
-      elif self.vcs == 'svn':
-        cmd = [settings.SVNADMIN, 'create', self.abspath]
-      else:
-        assert False, self.vcs
-      subprocess.check_call(cmd)
+      self._repo = anyvcs.create(self.abspath, self.vcs)
     if self.vcs == 'svn':
       self.update_authz()
 
@@ -163,6 +165,7 @@ class UserRights(models.Model):
   last_modified = models.DateTimeField(auto_now=True, null=True)
 
   class Meta:
+    db_table = 'anyvcs_userrights'
     unique_together = ('repo', 'user')
     verbose_name = 'User Access Rights'
     verbose_name_plural = 'User Access Rights'
@@ -188,6 +191,7 @@ class GroupRights(models.Model):
   last_modified = models.DateTimeField(auto_now=True, null=True)
 
   class Meta:
+    db_table = 'anyvcs_grouprights'
     unique_together = ('repo', 'group')
     verbose_name = 'Group Access Rights'
     verbose_name_plural = 'Group Access Rights'

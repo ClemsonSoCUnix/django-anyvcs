@@ -6,12 +6,12 @@ README = open(os.path.join(os.path.dirname(__file__), 'README.md')).read()
 # allow setup.py to be run from any path
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
-execfile('anyvcs/__init__.py')
+execfile('django_anyvcs/__init__.py')
 
 setup(
   name='django-anyvcs',
   version=__version__,
-  packages=['anyvcs'],
+  packages=['django_anyvcs'],
   include_package_data=True,
   license='GNU Lesser General Public License v3 (LGPLv3)',
   description='A Django app providing homogeneous management of VCS systems.',

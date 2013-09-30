@@ -28,11 +28,26 @@ import os
 import shutil
 import tempfile
 
+URI_FORMAT = {
+  ('git', 'ssh'): "{user}@{hostname}:{path}",
+  ('svn', 'ssh'): "svn+ssh://{user}@{hostname}/{path}",
+  ('hg', 'ssh'): "ssh://{user}@{hostname}/{path}",
+}
+
+URI_CONTEXT = {
+  'user': 'user',
+  'hostname': 'hostname',
+}
+
 class BaseTestCase(TestCase):
   def setUp(self):
     self.original_root = settings.VCSREPO_ROOT
     settings.VCSREPO_ROOT = tempfile.mkdtemp(prefix='anyvcs-test.')
     self.original_rights_function = settings.VCSREPO_RIGHTS_FUNCTION
+    self.original_uri_format = settings.VCSREPO_URI_FORMAT
+    settings.VCSREPO_URI_FORMAT = URI_FORMAT
+    self.original_uri_context = settings.VCSREPO_URI_CONTEXT
+    settings.VCSREPO_URI_CONTEXT = URI_CONTEXT
     settings.VCSREPO_RIGHTS_FUNCTION = None
 
   def tearDown(self):
@@ -40,6 +55,8 @@ class BaseTestCase(TestCase):
     shutil.rmtree(settings.VCSREPO_ROOT)
     settings.VCSREPO_ROOT = self.original_root
     settings.VCSREPO_RIGHTS_FUNCTION = self.original_rights_function
+    settings.VCSREPO_URI_FORMAT = self.original_uri_format
+    settings.VCSREPO_URI_CONTEXT = self.original_uri_context
 
 class CreateRepoTestCase(BaseTestCase):
   def test_invalid_names(self):
@@ -296,3 +313,22 @@ class LookupTestCase(BaseTestCase):
       document = json.loads(response.content)
       self.assertIn('rights', document)
       self.assertEqual(document['rights'], rights)
+
+class RepoUriTestCase(BaseTestCase):
+  def test_svn(self):
+    svn = Repo.objects.create(name='svn', vcs='svn', path='thesvn')
+    correct = 'svn+ssh://user@hostname/thesvn'
+    self.assertEqual(svn.ssh_uri, correct)
+    svn.delete()
+
+  def test_git(self):
+    git = Repo.objects.create(name='git', vcs='git', path='thegit')
+    correct = 'user@hostname:thegit'
+    self.assertEqual(git.ssh_uri, correct)
+    git.delete()
+
+  def test_hg(self):
+    hg = Repo.objects.create(name='hg', vcs='hg', path='thehg')
+    correct = 'ssh://user@hostname/thehg'
+    self.assertEqual(hg.ssh_uri, correct)
+    hg.delete()

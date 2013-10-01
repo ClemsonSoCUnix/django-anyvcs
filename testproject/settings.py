@@ -125,7 +125,7 @@ INSTALLED_APPS = (
     'django.contrib.admindocs',
     'south',
     'django_anyvcs',
-    'sshkey',
+    'django_sshkey',
 )
 
 # A sample logging configuration. The only tangible logging

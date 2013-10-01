@@ -68,6 +68,19 @@ class Repo(models.Model):
       self._repo = anyvcs.open(self.abspath, self.vcs)
       return self._repo
 
+  @property
+  def ssh_uri(self):
+    return self.get_uri('ssh')
+
+  def get_uri(self, protocol):
+    return self.format_uri(protocol, settings.VCSREPO_URI_CONTEXT) 
+
+  def format_uri(self, protocol, context):
+    context = dict(context)
+    context['path'] = self.path
+    fmt = settings.VCSREPO_URI_FORMAT[(self.vcs, protocol)]
+    return fmt.format(**context)
+
   def post_save(self, created, **kwargs):
     if created:
       self._repo = anyvcs.create(self.abspath, self.vcs)

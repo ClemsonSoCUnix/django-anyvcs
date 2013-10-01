@@ -19,4 +19,5 @@ from django.conf.urls.defaults import patterns, url
 
 urlpatterns = patterns('django_anyvcs.views',
   url(r'^access/(?P<repo>.+)$', 'access'),
+  url(r'^api/(?P<repo>.+)/(?P<attr>\w+)$', 'api_call'),
 )

@@ -22,6 +22,20 @@ from . import models, settings
 from models import Repo, UserRights, GroupRights
 import json
 
+class DictEncoder(json.JSONEncoder):
+  def default(self, o):
+    if hasattr(o, '__dict__'):
+      return o.__dict__
+    else:
+      return unicode(o)
+
+dictencoder = DictEncoder()
+
+def JsonResponse(data, *args, **kwargs):
+  kwargs.setdefault('mimetype', 'application/json')
+  json = dictencoder.encode(data)
+  return HttpResponse(json, *args, **kwargs)
+
 def default_hosts_allow_function(request):
   remote_addr = request.META.get('REMOTE_ADDR', '')
   return remote_addr in settings.VCSREPO_HOSTS_ALLOW
@@ -76,4 +90,4 @@ def access(request, repo):
     message = 'Repository does not exist: %s\n' % repo
     return HttpResponseNotFound(message, mimetype='text/plain')
   data = repo_access_data(repo, user)
-  return HttpResponse(json.dumps(data), mimetype='application/json')
+  return JsonResponse(data)

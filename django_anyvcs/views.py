@@ -54,7 +54,9 @@ def default_rights_function(repo, user):
           pass
       if rights is not None:
         return rights
-  return repo.public_rights
+  if repo.public_read:
+    return 'r'
+  return '-'
 
 def repo_access_data(repo, user):
   rights = None

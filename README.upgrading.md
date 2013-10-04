@@ -14,6 +14,7 @@ The following table maps django-anyvcs version to migration labels:
     1.0.x     anyvcs          0001
     1.1.x     anyvcs          0002
     2.0.x     django_anyvcs   0001    See Upgrading from 1.1.x to 2.x below
+    2.1.x     django_anyvcs   0004
 
 
 To upgrade, install the new version of django-anyvcs and then migrate your

@@ -44,7 +44,7 @@ class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
   path = models.CharField(max_length=100, unique=True, blank=True)
   vcs = models.CharField(max_length=3, choices=VCS_CHOICES, default='git')
-  public_rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='-')
+  public_read = models.BooleanField()
   created = models.DateTimeField(auto_now_add=True, null=True)
   last_modified = models.DateTimeField(auto_now=True, null=True)
 
@@ -132,10 +132,6 @@ class Repo(models.Model):
       if not filter(lambda x: x[0] == self.vcs, VCS_CHOICES):
         msg = 'Not a valid VCS type'
         err.setdefault('vcs', []).append(msg)
-    if not exclude or 'public_rights' not in exclude:
-      if not filter(lambda x: x[0] == self.public_rights, RIGHTS_CHOICES):
-        msg = 'Not a valid public_rights value'
-        err.setdefault('public_rights', []).append(msg)
     if err:
       raise ValidationError(err)
 
@@ -148,8 +144,8 @@ class Repo(models.Model):
         fcntl.lockf(conf, fcntl.LOCK_EX)
         conf.truncate()
         conf.write('[general]\n')
-        d = { '-': 'none', 'r': 'read', 'rw': 'write' }
-        conf.write('anon-access = %s\n' % d[self.public_rights])
+        if self.public_read:
+          conf.write('anon-access = read\n')
         conf.write('authz-db = authz\n')
       authz_path = os.path.join(self.abspath, 'conf', 'authz')
       d = { '-': '' }
@@ -168,7 +164,8 @@ class Repo(models.Model):
           authz.write('%s = %s\n' % (ur.user.username, rights(ur.rights)))
         for gr in self.grouprights_set.all():
           authz.write('@%s = %s\n' % (gr.group.name, rights(gr.rights)))
-        authz.write('* = %s\n' % rights(self.public_rights))
+        if self.public_read:
+          authz.write('* = r\n')
 
 class UserRights(models.Model):
   repo = models.ForeignKey(Repo, db_index=True)

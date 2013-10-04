@@ -73,10 +73,6 @@ class CreateRepoTestCase(BaseTestCase):
     repo = Repo(name='repo', path='repo', vcs='invalid')
     self.assertRaises(ValidationError, repo.full_clean)
 
-  def test_invalid_public_rights(self):
-    repo = Repo(name='repo', path='repo', vcs='git', public_rights='invalid')
-    self.assertRaises(ValidationError, repo.full_clean)
-
   def test_git(self):
     repo = Repo(name='a', path='b', vcs='git')
     repo.full_clean()
@@ -125,12 +121,6 @@ class CreateRepoTestCase(BaseTestCase):
     self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'a'))
     self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
 
-  def test_public_deny(self):
-    repo = Repo(name='a', path='a', vcs='git', public_rights='-')
-    repo.full_clean()
-    repo.save()
-    self.assertEqual(repo.public_rights, '-')
-
 class LookupTestCase(BaseTestCase):
   @classmethod
   def setUpClass(cls):
@@ -147,14 +137,14 @@ class LookupTestCase(BaseTestCase):
     User.objects.all().delete()
     super(LookupTestCase, cls).tearDownClass()
 
-  def test_public_rights_anonymous(self):
+  def test_public_read_anonymous(self):
     vcs = 'git'
-    for public_rights in ('-', 'r', 'rw'):
+    for public_read, public_rights in ((False, '-'), (True, 'r')):
       repo = Repo.objects.create(
         name = 'repo',
         path = 'repo',
         vcs = vcs,
-        public_rights = public_rights,
+        public_read = public_read,
       )
       client = Client()
       url = reverse('django_anyvcs.views.access', args=(repo.name,))
@@ -171,14 +161,14 @@ class LookupTestCase(BaseTestCase):
       self.assertEqual(document['rights'], public_rights)
       repo.delete()
 
-  def test_public_rights_user(self):
+  def test_public_read_user(self):
     vcs = 'hg'
-    for public_rights in ('-', 'r', 'rw'):
+    for public_read, public_rights in ((False, '-'), (True, 'r')):
       repo = Repo.objects.create(
         name = 'repo',
         path = 'repo',
         vcs = vcs,
-        public_rights = public_rights,
+        public_read = public_read,
       )
       client = Client()
       url = reverse('django_anyvcs.views.access', args=(repo.name,))
@@ -195,15 +185,15 @@ class LookupTestCase(BaseTestCase):
       self.assertEqual(document['rights'], public_rights)
       repo.delete()
 
-  def test_user_overrides_public_rights(self):
+  def test_user_overrides_public_read(self):
     vcs = 'git'
-    for public_rights in ('-', 'r', 'rw'):
+    for public_read, public_rights in ((False, '-'), (True, 'r')):
       for user_rights in ('-', 'r', 'rw'):
         repo = Repo.objects.create(
           name = 'repo',
           path = 'repo',
           vcs = vcs,
-          public_rights = public_rights,
+          public_read = public_read,
         )
         UserRights.objects.create(
           repo = repo,
@@ -225,15 +215,15 @@ class LookupTestCase(BaseTestCase):
         self.assertEqual(document['rights'], user_rights)
         repo.delete()
 
-  def test_group_overrides_public_rights(self):
+  def test_group_overrides_public_read(self):
     vcs = 'hg'
-    for public_rights in ('-', 'r', 'rw'):
+    for public_read, public_rights in ((False, '-'), (True, 'r')):
       for group_rights in ('-', 'r', 'rw'):
         repo = Repo.objects.create(
           name = 'repo',
           path = 'repo',
           vcs = vcs,
-          public_rights = public_rights,
+          public_read = public_read,
         )
         GroupRights.objects.create(
           repo = repo,
@@ -257,14 +247,12 @@ class LookupTestCase(BaseTestCase):
 
   def test_user_overrides_group_rights(self):
     vcs = 'git'
-    public_rights = '-'
     for group_rights in ('-', 'r', 'rw'):
       for user_rights in ('-', 'r', 'rw'):
         repo = Repo.objects.create(
           name = 'repo',
           path = 'repo',
           vcs = vcs,
-          public_rights = public_rights,
         )
         UserRights.objects.create(
           repo = repo,
@@ -296,7 +284,6 @@ class LookupTestCase(BaseTestCase):
       name = 'repo',
       path = 'repo',
       vcs = 'git',
-      public_rights = '-',
     )
     for rights in ('-', 'r', 'rw'):
       def f(r, u):

@@ -304,18 +304,18 @@ class LookupTestCase(BaseTestCase):
 class RepoUriTestCase(BaseTestCase):
   def test_svn(self):
     svn = Repo.objects.create(name='svn', vcs='svn', path='thesvn')
-    correct = 'svn+ssh://user@hostname/thesvn'
+    correct = 'svn+ssh://user@hostname/svn'
     self.assertEqual(svn.ssh_uri, correct)
     svn.delete()
 
   def test_git(self):
     git = Repo.objects.create(name='git', vcs='git', path='thegit')
-    correct = 'user@hostname:thegit'
+    correct = 'user@hostname:git'
     self.assertEqual(git.ssh_uri, correct)
     git.delete()
 
   def test_hg(self):
     hg = Repo.objects.create(name='hg', vcs='hg', path='thehg')
-    correct = 'ssh://user@hostname/thehg'
+    correct = 'ssh://user@hostname/hg'
     self.assertEqual(hg.ssh_uri, correct)
     hg.delete()

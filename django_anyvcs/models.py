@@ -72,6 +72,10 @@ class Repo(models.Model):
   def ssh_uri(self):
     return self.get_uri('ssh')
 
+  @property
+  def anonymous_ssh_uri(self):
+    return self.get_uri('anonymous-ssh')
+
   def get_uri(self, protocol):
     return self.format_uri(protocol, settings.VCSREPO_URI_CONTEXT) 
 

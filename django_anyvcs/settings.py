@@ -20,8 +20,6 @@ import getpass
 import socket
 
 VCSREPO_ROOT = settings.VCSREPO_ROOT
-VCSREPO_HOSTS_ALLOW = getattr(settings, 'VCSREPO_HOSTS_ALLOW', ('127.0.0.1', '::1', '::ffff:127.0.0.1'))
-VCSREPO_HOSTS_ALLOW_FUNCTION = getattr(settings, 'VCSREPO_HOSTS_ALLOW_FUNCTION', None)
 VCSREPO_RIGHTS_FUNCTION = getattr(settings, 'VCSREPO_RIGHTS_FUNCTION', None)
 VCSREPO_URI_FORMAT = getattr(settings, 'VCS_URI_FORMAT', {})
 VCSREPO_URI_FORMAT.setdefault(('git', 'ssh'), '{user}@{hostname}:{path}')

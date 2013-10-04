@@ -38,10 +38,6 @@ def JsonResponse(data, *args, **kwargs):
   json = dictencoder.encode(data)
   return HttpResponse(json, *args, **kwargs)
 
-def default_hosts_allow_function(request):
-  remote_addr = request.META.get('REMOTE_ADDR', '')
-  return remote_addr in settings.VCSREPO_HOSTS_ALLOW
-
 def default_rights_function(repo, user):
   if user is not None:
     try:
@@ -69,9 +65,6 @@ def repo_access_data(repo, user):
   return { 'rights': rights, 'vcs': repo.vcs, 'path': repo.abspath }
 
 def access(request, repo):
-  if not (settings.VCSREPO_HOSTS_ALLOW_FUNCTION or default_hosts_allow_function)(request):
-    raise PermissionDenied
-
   username = request.GET.get('u')
   user = None
   if username:

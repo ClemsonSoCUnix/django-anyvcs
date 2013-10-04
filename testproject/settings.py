@@ -152,7 +152,5 @@ LOGGING = {
 }
 
 VCSREPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), 'repo-root'))
-def VCSREPO_HOSTS_ALLOW_FUNCTION(request):
-  return True
 SSH_DISPATCH = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'ssh_dispatch.py'))
 SSHKEY_AUTHORIZED_KEYS_OPTIONS = 'command="env VCSREPO_ROOT=%s %s http://localhost:8000/anyvcs/access {username}",no-agent-forwarding,no-port-forwarding,no-pty,no-user-rc,no-X11-forwarding' % (VCSREPO_ROOT, SSH_DISPATCH)

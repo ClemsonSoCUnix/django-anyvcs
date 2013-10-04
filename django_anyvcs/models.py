@@ -77,7 +77,7 @@ class Repo(models.Model):
 
   def format_uri(self, protocol, context):
     context = dict(context)
-    context['path'] = self.path
+    context['path'] = self.name
     fmt = settings.VCSREPO_URI_FORMAT[(self.vcs, protocol)]
     return fmt.format(**context)
 

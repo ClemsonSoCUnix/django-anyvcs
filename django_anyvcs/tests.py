@@ -32,9 +32,13 @@ URI_FORMAT = {
   ('git', 'ssh'): "{user}@{hostname}:{path}",
   ('svn', 'ssh'): "svn+ssh://{user}@{hostname}/{path}",
   ('hg', 'ssh'): "ssh://{user}@{hostname}/{path}",
+  ('git', 'anonymous-ssh'): "{anonymous}@{hostname}:{path}",
+  ('svn', 'anonymous-ssh'): "svn+ssh://{anonymous}@{hostname}/{path}",
+  ('hg', 'anonymous-ssh'): "ssh://{anonymous}@{hostname}/{path}",
 }
 
 URI_CONTEXT = {
+  'anonymous': 'anonymous',
   'user': 'user',
   'hostname': 'hostname',
 }
@@ -318,4 +322,22 @@ class RepoUriTestCase(BaseTestCase):
     hg = Repo.objects.create(name='hg', vcs='hg', path='thehg')
     correct = 'ssh://user@hostname/hg'
     self.assertEqual(hg.ssh_uri, correct)
+    hg.delete()
+
+  def test_anonymous_svn(self):
+    svn = Repo.objects.create(name='svn', vcs='svn', path='thesvn')
+    correct = 'svn+ssh://anonymous@hostname/svn'
+    self.assertEqual(svn.anonymous_ssh_uri, correct)
+    svn.delete()
+
+  def test_anonymous_git(self):
+    git = Repo.objects.create(name='git', vcs='git', path='thegit')
+    correct = 'anonymous@hostname:git'
+    self.assertEqual(git.anonymous_ssh_uri, correct)
+    git.delete()
+
+  def test_anonymous_hg(self):
+    hg = Repo.objects.create(name='hg', vcs='hg', path='thehg')
+    correct = 'ssh://anonymous@hostname/hg'
+    self.assertEqual(hg.anonymous_ssh_uri, correct)
     hg.delete()

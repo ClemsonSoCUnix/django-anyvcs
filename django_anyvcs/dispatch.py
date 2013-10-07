@@ -80,18 +80,21 @@ def ssh_dispatch_hg(access_url, username, argv):
     except ValueError:
       die('Repository not specified')
   access = get_repo_access(access_url, repo_name, username, 'hg')
-  import mercurial.dispatch
   if 'r' not in access.rights:
     die('Permission denied')
-  hgcmd = ['-R', access.path, 'serve', '--stdio']
+  hg = os.getenv('HG', 'hg')
+  cmd = [hg, '-R', access.path, 'serve', '--stdio']
   if 'w' not in access.rights:
-    hgcmd += [
+    cmd += [
       '--config',
-      'hooks.prechangegroup.readonly=python:%s.hg_readonly' % __name__,
+      'hooks.prechangegroup.readonly=echo "Error: Permission denied (read-only)" >&2',
       '--config',
-      'hooks.prepushkey.readonly=python:%s.hg_readonly' % __name__,
+      'hooks.prepushkey.readonly=echo "Error: Permission denied (read-only)" >&2',
     ]
-  mercurial.dispatch.dispatch(mercurial.dispatch.request(hgcmd))
+  p = subprocess.Popen(cmd, stderr=subprocess.PIPE)
+  stdout, stderr = p.communicate()
+  stderr = stderr.replace(access.path, repo_name)
+  sys.stderr.write(stderr)
 
 def ssh_dispatch_svn(access_url, username, argv):
   VCSREPO_ROOT = os.getenv('VCSREPO_ROOT')
@@ -125,7 +128,3 @@ def get_repo_access(access_url, repo_name, username, vcs):
     sys.stderr.write('Error: Backend returned code %s\n' % code)
     sys.stderr.write(response.read())
     sys.exit(1)
-
-def hg_readonly(ui, **kwargs):
-  ui.warn('Error: Permission denied (read only)\n')
-  return 1

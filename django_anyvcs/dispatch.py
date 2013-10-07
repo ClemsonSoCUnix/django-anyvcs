@@ -42,11 +42,11 @@ def ssh_dispatch(access_url, username):
     die('Command not specified')
 
   if argv[0] in ('git-receive-pack', 'git-upload-pack', 'git-upload-archive'):
-    ssh_dispatch_git(access_url, username, argv)
+    return ssh_dispatch_git(access_url, username, argv)
   elif argv[0] == 'hg':
-    ssh_dispatch_hg(access_url, username, argv)
+    return ssh_dispatch_hg(access_url, username, argv)
   elif argv[0] == 'svnserve':
-    ssh_dispatch_svn(access_url, username, argv)
+    return ssh_dispatch_svn(access_url, username, argv)
   else:
     die('Command not allowed: %s' % cmd)
 
@@ -69,7 +69,7 @@ def ssh_dispatch_git(access_url, username, argv):
       die('Permission denied (read only)')
   git = os.getenv('GIT', 'git')
   cmd = [git, 'shell', '-c', "%s '%s'" % (argv[0], access.path)]
-  subprocess.check_call(cmd)
+  return subprocess.call(cmd)
 
 def ssh_dispatch_hg(access_url, username, argv):
   try:
@@ -95,6 +95,7 @@ def ssh_dispatch_hg(access_url, username, argv):
   stdout, stderr = p.communicate()
   stderr = stderr.replace(access.path, repo_name)
   sys.stderr.write(stderr)
+  return p.returncode
 
 def ssh_dispatch_svn(access_url, username, argv):
   VCSREPO_ROOT = os.getenv('VCSREPO_ROOT')
@@ -103,7 +104,7 @@ def ssh_dispatch_svn(access_url, username, argv):
   cmd = [svnserve, '--root', VCSREPO_ROOT, '--tunnel']
   if username is not None:
     cmd.extend(['--tunnel-user', username])
-  subprocess.check_call(cmd)
+  return subprocess.call(cmd)
 
 def get_repo_access(access_url, repo_name, username, vcs):
   query = {}

@@ -42,11 +42,11 @@ def ssh_dispatch(access_url, username):
     die('Command not specified')
 
   if argv[0] in ('git-receive-pack', 'git-upload-pack', 'git-upload-archive'):
-    ssh_dispatch_git(access_url, username, argv)
+    return ssh_dispatch_git(access_url, username, argv)
   elif argv[0] == 'hg':
-    ssh_dispatch_hg(access_url, username, argv)
+    return ssh_dispatch_hg(access_url, username, argv)
   elif argv[0] == 'svnserve':
-    ssh_dispatch_svn(access_url, username, argv)
+    return ssh_dispatch_svn(access_url, username, argv)
   else:
     die('Command not allowed: %s' % cmd)
 
@@ -69,7 +69,7 @@ def ssh_dispatch_git(access_url, username, argv):
       die('Permission denied (read only)')
   git = os.getenv('GIT', 'git')
   cmd = [git, 'shell', '-c', "%s '%s'" % (argv[0], access.path)]
-  subprocess.check_call(cmd)
+  return subprocess.call(cmd)
 
 def ssh_dispatch_hg(access_url, username, argv):
   try:
@@ -80,25 +80,32 @@ def ssh_dispatch_hg(access_url, username, argv):
     except ValueError:
       die('Repository not specified')
   access = get_repo_access(access_url, repo_name, username, 'hg')
-  import mercurial.dispatch
   if 'r' not in access.rights:
     die('Permission denied')
-  hgcmd = ['-R', access.path, 'serve', '--stdio']
+  hg = os.getenv('HG', 'hg')
+  cmd = [hg, '-R', access.path, 'serve', '--stdio']
   if 'w' not in access.rights:
-    hgcmd += [
+    cmd += [
       '--config',
-      'hooks.prechangegroup.readonly=python:%s.hg_readonly' % __name__,
+      'hooks.prechangegroup.readonly=echo "Error: Permission denied (read-only)" >&2',
       '--config',
-      'hooks.prepushkey.readonly=python:%s.hg_readonly' % __name__,
+      'hooks.prepushkey.readonly=echo "Error: Permission denied (read-only)" >&2',
     ]
-  mercurial.dispatch.dispatch(mercurial.dispatch.request(hgcmd))
+  p = subprocess.Popen(cmd, stderr=subprocess.PIPE)
+  stdout, stderr = p.communicate()
+  stderr = stderr.replace(access.path, repo_name)
+  sys.stderr.write(stderr)
+  return p.returncode
 
 def ssh_dispatch_svn(access_url, username, argv):
   VCSREPO_ROOT = os.getenv('VCSREPO_ROOT')
   assert VCSREPO_ROOT is not None, 'VCSREPO_ROOT is not set'
   svnserve = os.getenv('SVNSERVE', 'svnserve')
-  cmd = [svnserve, '--root', VCSREPO_ROOT, '--tunnel', '--tunnel-user', username]
-  subprocess.check_call(cmd)
+  byname_dir = os.path.join(VCSREPO_ROOT, '.byname')
+  cmd = [svnserve, '--root', byname_dir, '--tunnel']
+  if username is not None:
+    cmd.extend(['--tunnel-user', username])
+  return subprocess.call(cmd)
 
 def get_repo_access(access_url, repo_name, username, vcs):
   query = {}
@@ -123,7 +130,3 @@ def get_repo_access(access_url, repo_name, username, vcs):
     sys.stderr.write('Error: Backend returned code %s\n' % code)
     sys.stderr.write(response.read())
     sys.exit(1)
-
-def hg_readonly(ui, **kwargs):
-  ui.warn('Error: Permission denied (read only)\n')
-  return 1

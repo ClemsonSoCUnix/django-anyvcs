@@ -30,4 +30,5 @@ else:
   sys.stderr.write('Usage: %s <url> [<username>]\n' % sys.argv[0])
   sys.exit(1)
 
-django_anyvcs.dispatch.ssh_dispatch(url, username)
+status = django_anyvcs.dispatch.ssh_dispatch(url, username)
+sys.exit(status)

@@ -16,15 +16,27 @@
 # along with django-anyvcs.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.http import HttpResponse, HttpResponseNotFound
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.models import User
 from . import models, settings
 from models import Repo, UserRights, GroupRights
 import json
 
-def default_hosts_allow_function(request):
-  remote_addr = request.META.get('REMOTE_ADDR', '')
-  return remote_addr in settings.VCSREPO_HOSTS_ALLOW
+class DictEncoder(json.JSONEncoder):
+  def default(self, o):
+    if hasattr(o, '__dict__'):
+      return o.__dict__
+    else:
+      return unicode(o)
+
+dictencoder = DictEncoder()
+
+def JsonResponse(data, *args, **kwargs):
+  kwargs.setdefault('mimetype', 'application/json')
+  json = dictencoder.encode(data)
+  return HttpResponse(json, *args, **kwargs)
 
 def default_rights_function(repo, user):
   if user is not None:
@@ -42,7 +54,9 @@ def default_rights_function(repo, user):
           pass
       if rights is not None:
         return rights
-  return repo.public_rights
+  if repo.public_read:
+    return 'r'
+  return '-'
 
 def repo_access_data(repo, user):
   rights = None
@@ -53,9 +67,6 @@ def repo_access_data(repo, user):
   return { 'rights': rights, 'vcs': repo.vcs, 'path': repo.abspath }
 
 def access(request, repo):
-  if not (settings.VCSREPO_HOSTS_ALLOW_FUNCTION or default_hosts_allow_function)(request):
-    raise PermissionDenied
-
   username = request.GET.get('u')
   user = None
   if username:
@@ -76,4 +87,38 @@ def access(request, repo):
     message = 'Repository does not exist: %s\n' % repo
     return HttpResponseNotFound(message, mimetype='text/plain')
   data = repo_access_data(repo, user)
-  return HttpResponse(json.dumps(data), mimetype='application/json')
+  return JsonResponse(data)
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def api_call(request, repo, attr):
+  from collections import Callable
+  try:
+    repo = Repo.objects.get(name=repo)
+  except Repo.DoesNotExist:
+    message = 'Repository does not exist: %s\n' % repo
+    return HttpResponseNotFound(message, mimetype='text/plain')
+  if not hasattr(repo.repo, attr):
+    message = 'Attribute does not exist'
+    return HttpResponseNotFound(message, mimetype='text/plain')
+  attr = getattr(repo.repo, attr)
+  if request.method == 'POST':
+    if not isinstance(attr, Callable):
+      message = 'Attribute is not callable'
+      return HttpResponseNotFound(message, mimetype='text/plain')
+    kwargs = json.load(request)
+    try:
+      data = attr(**kwargs)
+    except Exception as e:
+      import traceback
+      data = {
+        'module': type(e).__module__,
+        'class': type(e).__name__,
+        'args': e.args,
+        'str': str(e),
+        'traceback': traceback.format_exc(),
+      }
+      return JsonResponse(data, status=400)
+    return JsonResponse(data)
+  else:
+    return JsonResponse(attr)

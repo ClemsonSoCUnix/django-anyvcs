@@ -3,5 +3,6 @@ include COPYING
 include COPYING.LESSER
 include README.md
 include README.upgrading.md
+include RELEASE-NOTES.txt
 include ssh_dispatch.py
 recursive-include django_anyvcs/migrations *.py

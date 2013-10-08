@@ -28,11 +28,30 @@ import os
 import shutil
 import tempfile
 
+URI_FORMAT = {
+  ('git', 'ssh'): "{user}@{hostname}:{path}",
+  ('svn', 'ssh'): "svn+ssh://{user}@{hostname}/{path}",
+  ('hg', 'ssh'): "ssh://{user}@{hostname}/{path}",
+  ('git', 'anonymous-ssh'): "{anonymous}@{hostname}:{path}",
+  ('svn', 'anonymous-ssh'): "svn+ssh://{anonymous}@{hostname}/{path}",
+  ('hg', 'anonymous-ssh'): "ssh://{anonymous}@{hostname}/{path}",
+}
+
+URI_CONTEXT = {
+  'anonymous': 'anonymous',
+  'user': 'user',
+  'hostname': 'hostname',
+}
+
 class BaseTestCase(TestCase):
   def setUp(self):
     self.original_root = settings.VCSREPO_ROOT
     settings.VCSREPO_ROOT = tempfile.mkdtemp(prefix='anyvcs-test.')
     self.original_rights_function = settings.VCSREPO_RIGHTS_FUNCTION
+    self.original_uri_format = settings.VCSREPO_URI_FORMAT
+    settings.VCSREPO_URI_FORMAT = URI_FORMAT
+    self.original_uri_context = settings.VCSREPO_URI_CONTEXT
+    settings.VCSREPO_URI_CONTEXT = URI_CONTEXT
     settings.VCSREPO_RIGHTS_FUNCTION = None
 
   def tearDown(self):
@@ -40,6 +59,8 @@ class BaseTestCase(TestCase):
     shutil.rmtree(settings.VCSREPO_ROOT)
     settings.VCSREPO_ROOT = self.original_root
     settings.VCSREPO_RIGHTS_FUNCTION = self.original_rights_function
+    settings.VCSREPO_URI_FORMAT = self.original_uri_format
+    settings.VCSREPO_URI_CONTEXT = self.original_uri_context
 
 class CreateRepoTestCase(BaseTestCase):
   def test_invalid_names(self):
@@ -56,10 +77,6 @@ class CreateRepoTestCase(BaseTestCase):
     repo = Repo(name='repo', path='repo', vcs='invalid')
     self.assertRaises(ValidationError, repo.full_clean)
 
-  def test_invalid_public_rights(self):
-    repo = Repo(name='repo', path='repo', vcs='git', public_rights='invalid')
-    self.assertRaises(ValidationError, repo.full_clean)
-
   def test_git(self):
     repo = Repo(name='a', path='b', vcs='git')
     repo.full_clean()
@@ -72,8 +89,6 @@ class CreateRepoTestCase(BaseTestCase):
     repo = Repo(name='a', vcs='git')
     repo.full_clean()
     repo.save()
-    self.assertEqual(repo.path, 'a')
-    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'a'))
     self.assertIsInstance(repo.repo, anyvcs.git.GitRepo)
 
   def test_hg(self):
@@ -88,8 +103,6 @@ class CreateRepoTestCase(BaseTestCase):
     repo = Repo(name='a', vcs='hg')
     repo.full_clean()
     repo.save()
-    self.assertEqual(repo.path, 'a')
-    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'a'))
     self.assertIsInstance(repo.repo, anyvcs.hg.HgRepo)
 
   def test_svn(self):
@@ -104,15 +117,7 @@ class CreateRepoTestCase(BaseTestCase):
     repo = Repo(name='a', vcs='svn')
     repo.full_clean()
     repo.save()
-    self.assertEqual(repo.path, 'a')
-    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'a'))
     self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
-
-  def test_public_deny(self):
-    repo = Repo(name='a', path='a', vcs='git', public_rights='-')
-    repo.full_clean()
-    repo.save()
-    self.assertEqual(repo.public_rights, '-')
 
 class LookupTestCase(BaseTestCase):
   @classmethod
@@ -130,14 +135,14 @@ class LookupTestCase(BaseTestCase):
     User.objects.all().delete()
     super(LookupTestCase, cls).tearDownClass()
 
-  def test_public_rights_anonymous(self):
+  def test_public_read_anonymous(self):
     vcs = 'git'
-    for public_rights in ('-', 'r', 'rw'):
+    for public_read, public_rights in ((False, '-'), (True, 'r')):
       repo = Repo.objects.create(
         name = 'repo',
         path = 'repo',
         vcs = vcs,
-        public_rights = public_rights,
+        public_read = public_read,
       )
       client = Client()
       url = reverse('django_anyvcs.views.access', args=(repo.name,))
@@ -154,14 +159,14 @@ class LookupTestCase(BaseTestCase):
       self.assertEqual(document['rights'], public_rights)
       repo.delete()
 
-  def test_public_rights_user(self):
+  def test_public_read_user(self):
     vcs = 'hg'
-    for public_rights in ('-', 'r', 'rw'):
+    for public_read, public_rights in ((False, '-'), (True, 'r')):
       repo = Repo.objects.create(
         name = 'repo',
         path = 'repo',
         vcs = vcs,
-        public_rights = public_rights,
+        public_read = public_read,
       )
       client = Client()
       url = reverse('django_anyvcs.views.access', args=(repo.name,))
@@ -178,15 +183,15 @@ class LookupTestCase(BaseTestCase):
       self.assertEqual(document['rights'], public_rights)
       repo.delete()
 
-  def test_user_overrides_public_rights(self):
+  def test_user_overrides_public_read(self):
     vcs = 'git'
-    for public_rights in ('-', 'r', 'rw'):
+    for public_read, public_rights in ((False, '-'), (True, 'r')):
       for user_rights in ('-', 'r', 'rw'):
         repo = Repo.objects.create(
           name = 'repo',
           path = 'repo',
           vcs = vcs,
-          public_rights = public_rights,
+          public_read = public_read,
         )
         UserRights.objects.create(
           repo = repo,
@@ -208,15 +213,15 @@ class LookupTestCase(BaseTestCase):
         self.assertEqual(document['rights'], user_rights)
         repo.delete()
 
-  def test_group_overrides_public_rights(self):
+  def test_group_overrides_public_read(self):
     vcs = 'hg'
-    for public_rights in ('-', 'r', 'rw'):
+    for public_read, public_rights in ((False, '-'), (True, 'r')):
       for group_rights in ('-', 'r', 'rw'):
         repo = Repo.objects.create(
           name = 'repo',
           path = 'repo',
           vcs = vcs,
-          public_rights = public_rights,
+          public_read = public_read,
         )
         GroupRights.objects.create(
           repo = repo,
@@ -240,14 +245,12 @@ class LookupTestCase(BaseTestCase):
 
   def test_user_overrides_group_rights(self):
     vcs = 'git'
-    public_rights = '-'
     for group_rights in ('-', 'r', 'rw'):
       for user_rights in ('-', 'r', 'rw'):
         repo = Repo.objects.create(
           name = 'repo',
           path = 'repo',
           vcs = vcs,
-          public_rights = public_rights,
         )
         UserRights.objects.create(
           repo = repo,
@@ -279,7 +282,6 @@ class LookupTestCase(BaseTestCase):
       name = 'repo',
       path = 'repo',
       vcs = 'git',
-      public_rights = '-',
     )
     for rights in ('-', 'r', 'rw'):
       def f(r, u):
@@ -296,3 +298,40 @@ class LookupTestCase(BaseTestCase):
       document = json.loads(response.content)
       self.assertIn('rights', document)
       self.assertEqual(document['rights'], rights)
+
+class RepoUriTestCase(BaseTestCase):
+  def test_svn(self):
+    svn = Repo.objects.create(name='svn', vcs='svn', path='thesvn')
+    correct = 'svn+ssh://user@hostname/svn'
+    self.assertEqual(svn.ssh_uri, correct)
+    svn.delete()
+
+  def test_git(self):
+    git = Repo.objects.create(name='git', vcs='git', path='thegit')
+    correct = 'user@hostname:git'
+    self.assertEqual(git.ssh_uri, correct)
+    git.delete()
+
+  def test_hg(self):
+    hg = Repo.objects.create(name='hg', vcs='hg', path='thehg')
+    correct = 'ssh://user@hostname/hg'
+    self.assertEqual(hg.ssh_uri, correct)
+    hg.delete()
+
+  def test_anonymous_svn(self):
+    svn = Repo.objects.create(name='svn', vcs='svn', path='thesvn')
+    correct = 'svn+ssh://anonymous@hostname/svn'
+    self.assertEqual(svn.anonymous_ssh_uri, correct)
+    svn.delete()
+
+  def test_anonymous_git(self):
+    git = Repo.objects.create(name='git', vcs='git', path='thegit')
+    correct = 'anonymous@hostname:git'
+    self.assertEqual(git.anonymous_ssh_uri, correct)
+    git.delete()
+
+  def test_anonymous_hg(self):
+    hg = Repo.objects.create(name='hg', vcs='hg', path='thehg')
+    correct = 'ssh://anonymous@hostname/hg'
+    self.assertEqual(hg.anonymous_ssh_uri, correct)
+    hg.delete()

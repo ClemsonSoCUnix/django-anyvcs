@@ -16,8 +16,19 @@
 # along with django-anyvcs.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.conf import settings
+import getpass
+import socket
 
 VCSREPO_ROOT = settings.VCSREPO_ROOT
-VCSREPO_HOSTS_ALLOW = getattr(settings, 'VCSREPO_HOSTS_ALLOW', ('127.0.0.1', '::1', '::ffff:127.0.0.1'))
-VCSREPO_HOSTS_ALLOW_FUNCTION = getattr(settings, 'VCSREPO_HOSTS_ALLOW_FUNCTION', None)
 VCSREPO_RIGHTS_FUNCTION = getattr(settings, 'VCSREPO_RIGHTS_FUNCTION', None)
+VCSREPO_URI_FORMAT = getattr(settings, 'VCS_URI_FORMAT', {})
+VCSREPO_URI_FORMAT.setdefault(('git', 'ssh'), '{user}@{hostname}:{path}')
+VCSREPO_URI_FORMAT.setdefault(('svn', 'ssh'), 'svn+ssh://{user}@{hostname}/{path}')
+VCSREPO_URI_FORMAT.setdefault(('hg', 'ssh'), 'ssh://{user}@{hostname}/{path}')
+VCSREPO_URI_FORMAT.setdefault(('git', 'anonymous-ssh'), '{anonymous}@{hostname}:{path}')
+VCSREPO_URI_FORMAT.setdefault(('svn', 'anonymous-ssh'), 'svn+ssh://{anonymous}@{hostname}/{path}')
+VCSREPO_URI_FORMAT.setdefault(('hg', 'anonymous-ssh'), 'ssh://{anonymous}@{hostname}/{path}')
+VCSREPO_URI_CONTEXT = getattr(settings, 'VCS_URI_CONTEXT', {})
+VCSREPO_URI_CONTEXT.setdefault('anonymous', 'anonymous')
+VCSREPO_URI_CONTEXT.setdefault('user', getpass.getuser())
+VCSREPO_URI_CONTEXT.setdefault('hostname', socket.gethostname())

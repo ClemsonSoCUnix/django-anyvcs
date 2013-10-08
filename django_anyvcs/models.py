@@ -108,7 +108,7 @@ class Repo(models.Model):
   def post_save(self, created, **kwargs):
     if created:
       try:
-        os.makedirs(settings.VCSREPO_ROOT)
+        os.makedirs(self.abspath)
       except OSError as e:
         import errno
         if e.errno != errno.EEXIST:

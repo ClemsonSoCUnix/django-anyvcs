@@ -1,6 +1,25 @@
 Release Notes for django-anyvcs
 ===============================
 
+2.1.0 (2013-10-08)
+------------------
+
+Migration label: 0004
+
+* Deprecate Repo.public_rights, instead use Repo.public_read.  Note this means
+  that public write access is no longer possible.
+* Add properties to Repo and settings VCSREPO_URI_FORMAT and
+  VCSREPO_URI_CONTEXT to facilitate getting various URIs of a repository.
+* Add a web API for Repo.repo methods.
+* django_anyvcs.remote provides a python API, compatiable with the
+  python-anyvcs VCSRepo API, to access the aforementioned web API.
+* An empty Repo.path is now populated with a path based on a UUID, and
+  arranged in subdirectories so that the top-level directory is not overrun
+  with thousands or more files.
+* A more useful admin panel
+* Major bug fix for Subversion so that repo name can be different from path
+* A few small bug fixes
+
 2.0.1 (2013-09-30)
 ------------------
 
@@ -10,7 +29,7 @@ Release Notes for django-anyvcs
 2.0.0 (2013-09-27)
 ------------------
 
-Migration required: 0001 (see README.upgrading.md)
+Migration label: 0001 (see README.upgrading.md)
 
 * Rename anyvcs to django_anyvcs to avoid conflict with [python-anyvcs][1]
 * Add Repo.repo property that refers to an instance of anyvcs.common.VCSRepo
@@ -33,7 +52,7 @@ Migration required: 0001 (see README.upgrading.md)
 1.1.0 (2013-08-30)
 ------------------
 
-Migration required: 0002
+Migration label: 0002
 
 * Add Repo.created and Repo.last_modified timestamp properties
 

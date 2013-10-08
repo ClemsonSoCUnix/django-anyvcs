@@ -101,7 +101,8 @@ def ssh_dispatch_svn(access_url, username, argv):
   VCSREPO_ROOT = os.getenv('VCSREPO_ROOT')
   assert VCSREPO_ROOT is not None, 'VCSREPO_ROOT is not set'
   svnserve = os.getenv('SVNSERVE', 'svnserve')
-  cmd = [svnserve, '--root', VCSREPO_ROOT, '--tunnel']
+  byname_dir = os.path.join(VCSREPO_ROOT, '.byname')
+  cmd = [svnserve, '--root', byname_dir, '--tunnel']
   if username is not None:
     cmd.extend(['--tunnel-user', username])
   return subprocess.call(cmd)

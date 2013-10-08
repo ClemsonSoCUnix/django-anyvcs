@@ -89,8 +89,6 @@ class CreateRepoTestCase(BaseTestCase):
     repo = Repo(name='a', vcs='git')
     repo.full_clean()
     repo.save()
-    self.assertEqual(repo.path, 'a')
-    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'a'))
     self.assertIsInstance(repo.repo, anyvcs.git.GitRepo)
 
   def test_hg(self):
@@ -105,8 +103,6 @@ class CreateRepoTestCase(BaseTestCase):
     repo = Repo(name='a', vcs='hg')
     repo.full_clean()
     repo.save()
-    self.assertEqual(repo.path, 'a')
-    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'a'))
     self.assertIsInstance(repo.repo, anyvcs.hg.HgRepo)
 
   def test_svn(self):
@@ -121,8 +117,6 @@ class CreateRepoTestCase(BaseTestCase):
     repo = Repo(name='a', vcs='svn')
     repo.full_clean()
     repo.save()
-    self.assertEqual(repo.path, 'a')
-    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'a'))
     self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
 
 class LookupTestCase(BaseTestCase):

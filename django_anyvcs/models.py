@@ -157,7 +157,13 @@ class Repo(models.Model):
         err['name'] = ['Invalid name']
     if not exclude or 'path' not in exclude:
       if not self.path:
-        self.path = self.name
+        # fabricate a path based off of a uuid
+        import uuid
+        h = uuid.uuid1().hex
+        p = [h[i:i+2] for i in range(0, 8, 2)]
+        p.extend(h[i:i+4] for i in range(8, 20, 4))
+        p.append(h[20:])
+        self.path = os.path.join(*p)
       if name_rx.match(self.path):
         # verify we aren't nesting repo paths (e.g. a and a/b)
         # is this a parent of another repo? (is this the a for another a/b)

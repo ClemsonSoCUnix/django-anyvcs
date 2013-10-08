@@ -39,6 +39,17 @@ RIGHTS_CHOICES = (
 
 name_rx = re.compile(r'^(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*/)*(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*)$')
 
+def removedirs(path, stop=None):
+  while path != stop:
+    try:
+      os.rmdir(path)
+      path = os.path.dirname(path)
+    except OSError, e:
+      import errno
+      if e.errno != errno.ENOTEMPTY:
+        raise
+      break
+
 class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
   path = models.CharField(max_length=100, unique=True, blank=True, verbose_name='Relative Path', help_text='Warning: Changing this does not rename the repository on disk!')
@@ -118,17 +129,21 @@ class Repo(models.Model):
       self.update_local_files()
 
   def post_delete(self, **kwargs):
-    shutil.rmtree(self.abspath)
-    d = os.path.dirname(self.abspath)
-    while d != settings.VCSREPO_ROOT:
-      try:
-        os.rmdir(d)
-        d = os.path.dirname(d)
-      except OSError, e:
-        import errno
-        if e.errno != errno.ENOTEMPTY:
-          raise
-        break
+    import errno
+    try:
+      shutil.rmtree(self.abspath)
+      removedirs(os.path.dirname(self.abspath))
+    except OSError as e:
+      if e.errno != errno.ENOENT:
+        raise
+    byname_dir = os.path.join(settings.VCSREPO_ROOT, '.byname')
+    link_path = os.path.join(byname_dir, self.name)
+    try:
+      os.unlink(link_path)
+      removedirs(os.path.dirname(link_path), byname_dir)
+    except OSError as e:
+      if e.errno != errno.ENOENT:
+        raise
 
   def clean_fields(self, exclude=None):
     err = {}

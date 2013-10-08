@@ -132,7 +132,7 @@ class Repo(models.Model):
     import errno
     try:
       shutil.rmtree(self.abspath)
-      removedirs(os.path.dirname(self.abspath))
+      removedirs(os.path.dirname(self.abspath), settings.VCSREPO_ROOT)
     except OSError as e:
       if e.errno != errno.ENOENT:
         raise

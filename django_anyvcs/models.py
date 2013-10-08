@@ -108,6 +108,12 @@ class Repo(models.Model):
 
   def post_save(self, created, **kwargs):
     if created:
+      try:
+        os.makedirs(settings.VCSREPO_ROOT)
+      except OSError as e:
+        import errno
+        if e.errno != errno.EEXIST:
+          raise
       self._repo = anyvcs.create(self.abspath, self.vcs)
     if self.vcs == 'svn':
       self.update_authz()

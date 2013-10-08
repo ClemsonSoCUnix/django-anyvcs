@@ -19,15 +19,19 @@ from django.contrib import admin
 from models import Repo, UserRights, GroupRights
 
 class RepoAdmin(admin.ModelAdmin):
-  list_display = ['__unicode__', 'vcs']
+  list_display = ['__unicode__', 'path', 'vcs']
   list_filter = ['vcs']
-  search_fields = ['name']
+  search_fields = ['name', 'path']
 
   def get_readonly_fields(self, request, obj=None):
     if obj:
-      return ['vcs']
+      return ['abspath', 'vcs']
     else:
       return []
+
+  def abspath(self, instance):
+    return instance.abspath
+  abspath.short_description = 'Full Path'
 
 class UserRightsAdmin(admin.ModelAdmin):
   list_display = ['__unicode__', 'repo', 'user', 'rights']

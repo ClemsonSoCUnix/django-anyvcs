@@ -42,9 +42,9 @@ name_rx = re.compile(r'^(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*/)*(?:[a-zA-Z0-9][a-zA-Z0-
 
 class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
-  path = models.CharField(max_length=100, unique=True, blank=True)
-  vcs = models.CharField(max_length=3, choices=VCS_CHOICES, default='git')
-  public_read = models.BooleanField()
+  path = models.CharField(max_length=100, unique=True, blank=True, verbose_name='Relative Path', help_text='Warning: Changing this does not rename the repository on disk!')
+  vcs = models.CharField(max_length=3, choices=VCS_CHOICES, default='git', verbose_name='Version Control System')
+  public_read = models.BooleanField(verbose_name='Public Read Access')
   created = models.DateTimeField(auto_now_add=True, null=True)
   last_modified = models.DateTimeField(auto_now=True, null=True)
 

@@ -69,6 +69,27 @@ class Repo(models.Model):
       return self._repo
 
   @property
+  def public_rights(self):
+    """Provided for backwards compatibility"""
+    import warnings
+    warn = 'public_rights is deprecated, use public_read instead'
+    warnings.warn(warn, DeprecationWarning)
+    if self.public_read:
+      return 'r'
+    else:
+      return '-'
+
+  @public_rights.setter
+  def public_rights(self, value):
+    import warnings
+    warn = 'public_rights is deprecated, use public_read instead'
+    warnings.warn(warn, DeprecationWarning)
+    self.public_read = 'r' in value
+    if 'w' in value:
+      warn = 'write privilege for public_rights is ignored'
+      warnings.warn(warn, RuntimeWarning)
+
+  @property
   def ssh_uri(self):
     return self.get_uri('ssh')
 

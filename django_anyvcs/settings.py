@@ -21,6 +21,8 @@ import socket
 
 VCSREPO_ROOT = settings.VCSREPO_ROOT
 VCSREPO_RIGHTS_FUNCTION = getattr(settings, 'VCSREPO_RIGHTS_FUNCTION', None)
+VCSREPO_USER_REVERSE_FUNCTION = getattr(settings, 'VCSREPO_USER_REVERSE_FUNCTION', None)
+VCSREPO_GROUP_REVERSE_FUNCTION = getattr(settings, 'VCSREPO_GROUP_REVERSE_FUNCTION', None)
 VCSREPO_URI_FORMAT = getattr(settings, 'VCS_URI_FORMAT', {})
 VCSREPO_URI_FORMAT.setdefault(('git', 'ssh'), '{user}@{hostname}:{path}')
 VCSREPO_URI_FORMAT.setdefault(('svn', 'ssh'), 'svn+ssh://{user}@{hostname}/{path}')

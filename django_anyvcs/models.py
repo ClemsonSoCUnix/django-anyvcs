@@ -50,6 +50,12 @@ def removedirs(path, stop=None):
         raise
       break
 
+def default_user_reverse_function(repo, rights):
+  return (x.user for x in repo.userrights_set.filter(rights=rights))
+
+def default_group_reverse_function(repo, rights):
+  return (x.group for x in repo.grouprights_set.filter(rights=rights))
+
 class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
   path = models.CharField(max_length=100, unique=True, blank=True, verbose_name='Relative Path', help_text='Warning: Changing this does not rename the repository on disk!')
@@ -210,6 +216,7 @@ class Repo(models.Model):
   def update_authz(self):
     if self.vcs == 'svn':
       import fcntl
+      from itertools import chain
       conf_path = os.path.join(self.abspath, 'conf', 'svnserve.conf')
       with open(conf_path, 'a') as conf:
         conf.seek(0)
@@ -223,19 +230,27 @@ class Repo(models.Model):
       d = { '-': '' }
       def rights(r):
         return d.get(r, r)
+      rights_levels = [x[0] for x in RIGHTS_CHOICES]
+      user_func = (settings.VCSREPO_USER_REVERSE_FUNCTION or
+                   default_user_reverse_function)
+      group_func = (settings.VCSREPO_GROUP_REVERSE_FUNCTION or
+                    default_group_reverse_function)
+      group_dict = dict((r, set(group_func(self, r))) for r in rights_levels)
+      all_groups = set(chain(*group_dict.values()))
       with open(authz_path, 'a') as authz:
         authz.seek(0)
         fcntl.lockf(authz, fcntl.LOCK_EX)
         authz.truncate()
         authz.write('[groups]\n')
-        for gr in self.grouprights_set.all():
-          members = ','.join((u.username for u in gr.group.user_set.all()))
-          authz.write('@%s = %s\n' % (gr.group.name, members))
+        for g in all_groups:
+          members = ','.join((u.username for u in g.user_set.all()))
+          authz.write('@%s = %s\n' % (g.name, members))
         authz.write('\n[/]\n')
-        for ur in self.userrights_set.all():
-          authz.write('%s = %s\n' % (ur.user.username, rights(ur.rights)))
-        for gr in self.grouprights_set.all():
-          authz.write('@%s = %s\n' % (gr.group.name, rights(gr.rights)))
+        for rights_level in rights_levels:
+          for u in set(user_func(self, rights_level)):
+            authz.write('%s = %s\n' % (u.username, rights(rights_level)))
+          for g in group_dict[rights_level]:
+            authz.write('@%s = %s\n' % (g.name, rights(rights_level)))
         if self.public_read:
           authz.write('* = r\n')
 

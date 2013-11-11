@@ -50,11 +50,11 @@ def removedirs(path, stop=None):
         raise
       break
 
-def default_user_reverse_function(repo, rights):
-  return (x.user for x in repo.userrights_set.filter(rights=rights))
+def default_user_acl_function(repo):
+  return dict((x.user, x.rights) for x in repo.userrights_set.all())
 
-def default_group_reverse_function(repo, rights):
-  return (x.group for x in repo.grouprights_set.filter(rights=rights))
+def default_group_acl_function(repo):
+  return dict((x.group, x.rights) for x in repo.grouprights_set.all())
 
 class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
@@ -230,27 +230,23 @@ class Repo(models.Model):
       d = { '-': '' }
       def rights(r):
         return d.get(r, r)
-      rights_levels = [x[0] for x in RIGHTS_CHOICES]
-      user_func = (settings.VCSREPO_USER_REVERSE_FUNCTION or
-                   default_user_reverse_function)
-      group_func = (settings.VCSREPO_GROUP_REVERSE_FUNCTION or
-                    default_group_reverse_function)
-      group_dict = dict((r, set(group_func(self, r))) for r in rights_levels)
-      all_groups = set(chain(*group_dict.values()))
+      user_acl = (settings.VCSREPO_USER_ACL_FUNCTION or
+                   default_user_acl_function)(self)
+      group_acl = (settings.VCSREPO_GROUP_ACL_FUNCTION or
+                    default_group_acl_function)(self)
       with open(authz_path, 'a') as authz:
         authz.seek(0)
         fcntl.lockf(authz, fcntl.LOCK_EX)
         authz.truncate()
         authz.write('[groups]\n')
-        for g in all_groups:
+        for g in group_acl.keys():
           members = ','.join((u.username for u in g.user_set.all()))
           authz.write('@%s = %s\n' % (g.name, members))
         authz.write('\n[/]\n')
-        for rights_level in rights_levels:
-          for u in set(user_func(self, rights_level)):
-            authz.write('%s = %s\n' % (u.username, rights(rights_level)))
-          for g in group_dict[rights_level]:
-            authz.write('@%s = %s\n' % (g.name, rights(rights_level)))
+        for u, r in user_acl.iteritems(): 
+          authz.write('%s = %s\n' % (u.username, rights(r)))
+        for g, r in group_acl.iteritems():
+          authz.write('@%s = %s\n' % (g.name, rights(r)))
         if self.public_read:
           authz.write('* = r\n')
 

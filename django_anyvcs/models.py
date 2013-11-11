@@ -216,7 +216,6 @@ class Repo(models.Model):
   def update_authz(self):
     if self.vcs == 'svn':
       import fcntl
-      from itertools import chain
       conf_path = os.path.join(self.abspath, 'conf', 'svnserve.conf')
       with open(conf_path, 'a') as conf:
         conf.seek(0)

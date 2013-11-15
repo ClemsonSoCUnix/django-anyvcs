@@ -400,3 +400,9 @@ class SvnBynameTestCase(BaseTestCase):
     self.assertByname(self.repo1)
     self.assertByname(self.repo2)
     self.assertByname(self.repo3)
+
+  def test_idempotent_save(self):
+    ## saving twice shouldn't remove the symlink
+    self.assertByname(self.repo1)
+    self.repo1.save()
+    self.assertByname(self.repo1)

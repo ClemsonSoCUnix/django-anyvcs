@@ -121,7 +121,8 @@ class Repo(models.Model):
     if self.vcs == 'svn':
       try:
         r = type(self).objects.get(pk=self.pk)
-        self._prev_name = r.name
+        if self.name != r.name:
+          self._prev_name = r.name
       except type(self).DoesNotExist: ## if created
         pass
 

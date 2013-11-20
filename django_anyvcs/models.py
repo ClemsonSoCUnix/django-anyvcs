@@ -50,6 +50,12 @@ def removedirs(path, stop=None):
         raise
       break
 
+def default_user_acl_function(repo):
+  return dict((x.user, x.rights) for x in repo.userrights_set.all())
+
+def default_group_acl_function(repo):
+  return dict((x.group, x.rights) for x in repo.grouprights_set.all())
+
 class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
   path = models.CharField(max_length=100, unique=True, blank=True, verbose_name='Relative Path', help_text='Warning: Changing this does not rename the repository on disk!')
@@ -223,19 +229,23 @@ class Repo(models.Model):
       d = { '-': '' }
       def rights(r):
         return d.get(r, r)
+      user_acl = (settings.VCSREPO_USER_ACL_FUNCTION or
+                   default_user_acl_function)(self)
+      group_acl = (settings.VCSREPO_GROUP_ACL_FUNCTION or
+                    default_group_acl_function)(self)
       with open(authz_path, 'a') as authz:
         authz.seek(0)
         fcntl.lockf(authz, fcntl.LOCK_EX)
         authz.truncate()
         authz.write('[groups]\n')
-        for gr in self.grouprights_set.all():
-          members = ','.join((u.username for u in gr.group.user_set.all()))
-          authz.write('@%s = %s\n' % (gr.group.name, members))
+        for g in group_acl.keys():
+          members = ','.join((u.username for u in g.user_set.all()))
+          authz.write('@%s = %s\n' % (g.name, members))
         authz.write('\n[/]\n')
-        for ur in self.userrights_set.all():
-          authz.write('%s = %s\n' % (ur.user.username, rights(ur.rights)))
-        for gr in self.grouprights_set.all():
-          authz.write('@%s = %s\n' % (gr.group.name, rights(gr.rights)))
+        for u, r in user_acl.iteritems(): 
+          authz.write('%s = %s\n' % (u.username, rights(r)))
+        for g, r in group_acl.iteritems():
+          authz.write('@%s = %s\n' % (g.name, rights(r)))
         if self.public_read:
           authz.write('* = r\n')
 

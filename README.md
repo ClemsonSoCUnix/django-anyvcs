@@ -53,6 +53,16 @@ indicate an anonymous user).  The function should return the rights string,
 which is one of '-' (deny access), 'r' (read-only access), or 'rw' (read and
 write access).
 
+`VCSREPO_USER_ACL_FUNCTION` (default: None)
+If set, this function is called with one parameter which is a repository. The
+function should return a `dict` which maps `auth.User` instances to a rights
+string, one of '-', 'r', or 'rw' for the given repository.
+
+`VCSREPO_GROUP_ACL_FUNCTION` (default: None)
+If set, this function is called with one parameter which is a repository. The
+function should return a `dict` which maps `auth.Group` instances to a rights
+string, one of '-', 'r', or 'rw' for the given repository.
+
 When used with [django-sshkey][1], a setting similar to this will tie together
 the two apps:
 

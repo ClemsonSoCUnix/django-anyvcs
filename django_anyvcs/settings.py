@@ -23,14 +23,28 @@ VCSREPO_ROOT = settings.VCSREPO_ROOT
 VCSREPO_RIGHTS_FUNCTION = getattr(settings, 'VCSREPO_RIGHTS_FUNCTION', None)
 VCSREPO_USER_ACL_FUNCTION = getattr(settings, 'VCSREPO_USER_ACL_FUNCTION', None)
 VCSREPO_GROUP_ACL_FUNCTION = getattr(settings, 'VCSREPO_GROUP_ACL_FUNCTION', None)
-VCSREPO_URI_FORMAT = getattr(settings, 'VCS_URI_FORMAT', {})
+
+if hasattr(settings, 'VCS_URI_FORMAT'):
+  import warnings
+  warn = "VCS_URI_FORMAT is deprecated; use VCSREPO_URI_FORMAT"
+  warnings.warn(warn, DeprecationWarning)
+  VCSREPO_URI_FORMAT = settings.VCS_URI_FORMAT
+else:
+  VCSREPO_URI_FORMAT = getattr(settings, 'VCSREPO_URI_FORMAT', {})
 VCSREPO_URI_FORMAT.setdefault(('git', 'ssh'), '{user}@{hostname}:{path}')
 VCSREPO_URI_FORMAT.setdefault(('svn', 'ssh'), 'svn+ssh://{user}@{hostname}/{path}')
 VCSREPO_URI_FORMAT.setdefault(('hg', 'ssh'), 'ssh://{user}@{hostname}/{path}')
 VCSREPO_URI_FORMAT.setdefault(('git', 'anonymous-ssh'), '{anonymous}@{hostname}:{path}')
 VCSREPO_URI_FORMAT.setdefault(('svn', 'anonymous-ssh'), 'svn+ssh://{anonymous}@{hostname}/{path}')
 VCSREPO_URI_FORMAT.setdefault(('hg', 'anonymous-ssh'), 'ssh://{anonymous}@{hostname}/{path}')
-VCSREPO_URI_CONTEXT = getattr(settings, 'VCS_URI_CONTEXT', {})
+
+if hasattr(settings, 'VCS_URI_CONTEXT'):
+  import warnings
+  warn = "VCS_URI_CONTEXT is deprecated; use VCSREPO_URI_CONTEXT"
+  warnings.warn(warn, DeprecationWarning)
+  VCSREPO_URI_CONTEXT = settings.VCS_URI_CONTEXT
+else:
+  VCSREPO_URI_CONTEXT = getattr(settings, 'VCSREPO_URI_CONTEXT', {})
 VCSREPO_URI_CONTEXT.setdefault('anonymous', 'anonymous')
 VCSREPO_URI_CONTEXT.setdefault('user', getpass.getuser())
 VCSREPO_URI_CONTEXT.setdefault('hostname', socket.gethostname())

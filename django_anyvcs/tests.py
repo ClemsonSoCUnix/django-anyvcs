@@ -335,3 +335,74 @@ class RepoUriTestCase(BaseTestCase):
     correct = 'ssh://anonymous@hostname/hg'
     self.assertEqual(hg.anonymous_ssh_uri, correct)
     hg.delete()
+
+class SvnBynameTestCase(BaseTestCase):
+  def setUp(self):
+    super(BaseTestCase, self).setUp()
+    self.repo1 = Repo(name='a/b/c/svn1', vcs='svn')
+    self.repo2 = Repo(name='a/svn2', vcs='svn')
+    self.repo3 = Repo(name='svn3', vcs='svn')
+    self.repo1.full_clean()
+    self.repo1.save()
+    self.repo2.full_clean()
+    self.repo2.save()
+    self.repo3.full_clean()
+    self.repo3.save()
+    self.byname_dir = os.path.join(settings.VCSREPO_ROOT, '.byname')
+
+  def tearDown(self):
+    Repo.objects.all().delete()
+    super(BaseTestCase, self).tearDown()
+
+  def assertByname(self, repo):
+    byname_path = os.path.join(self.byname_dir, repo.name)
+    byname_parent, filename = os.path.split(byname_path)
+    self.assertPathExists(byname_path)
+    abspath = os.path.normpath(os.path.join(byname_parent, os.readlink(byname_path)))
+    self.assertEqual(repo.abspath, abspath)
+
+  def assertPathExists(self, path):
+    if isinstance(path, (tuple, list)):
+      path = os.path.join(*path)
+    if not os.path.exists(path):
+      raise AssertionError("Path does not exist: ", path)
+
+  def assertPathNotExists(self, path):
+    if isinstance(path, (tuple, list)):
+      path = os.path.join(*path)
+    try:
+      self.assertPathExists(path)
+      raise AssertionError("Path exists: ", path)
+    except AssertionError:
+      pass
+
+  def test_created(self):
+    self.assertByname(self.repo1)
+    self.assertByname(self.repo2)
+    self.assertByname(self.repo3)
+
+  def test_move(self):
+    old_link = os.path.join(self.byname_dir, self.repo1.name)
+    self.repo1.name = 'svn1'
+    self.repo1.save()
+    self.assertByname(self.repo1)
+    self.assertPathNotExists([self.byname_dir, 'a', 'b', 'c'])
+    self.assertPathNotExists([self.byname_dir, 'a', 'b'])
+    self.assertPathExists([self.byname_dir, 'a'])
+    self.assertByname(self.repo2)
+    self.assertByname(self.repo3)
+
+    ## go back to initial state
+    old_link = os.path.join(self.byname_dir, self.repo1.name)
+    self.repo1.name = 'a/b/c/svn1'
+    self.repo1.save()
+    self.assertPathNotExists(old_link)
+    self.assertByname(self.repo1)
+    self.assertByname(self.repo2)
+    self.assertByname(self.repo3)
+
+  def test_idempotent_save(self):
+    ## saving twice shouldn't remove the symlink
+    self.assertByname(self.repo1)
+    self.repo1.save()
+    self.assertByname(self.repo1)

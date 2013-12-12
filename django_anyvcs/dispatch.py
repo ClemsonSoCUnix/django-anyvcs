@@ -130,3 +130,17 @@ def get_repo_access(access_url, repo_name, username, vcs):
     sys.stderr.write('Error: Backend returned code %s\n' % code)
     sys.stderr.write(response.read())
     sys.exit(1)
+
+def main():
+  if len(sys.argv) == 2:
+    url = sys.argv[1]
+    username = None
+  elif len(sys.argv) == 3:
+    url, username = sys.argv[1:]
+  else:
+    sys.stderr.write('Usage: %s <url> [<username>]\n' % sys.argv[0])
+    sys.exit(1)
+
+  status = ssh_dispatch(url, username)
+  sys.exit(status)
+  

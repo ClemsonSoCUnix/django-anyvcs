@@ -16,19 +16,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with django-anyvcs.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
-import shlex
-import sys
+import warnings
 import django_anyvcs.dispatch
 
-if len(sys.argv) == 2:
-  url = sys.argv[1]
-  username = None
-elif len(sys.argv) == 3:
-  url, username = sys.argv[1:]
-else:
-  sys.stderr.write('Usage: %s <url> [<username>]\n' % sys.argv[0])
-  sys.exit(1)
-
-status = django_anyvcs.dispatch.ssh_dispatch(url, username)
-sys.exit(status)
+warnings.warn("ssh_dispatch.py is deprecated; use django-anyvcs-ssh",
+              DeprecationWarning)
+django_anyvcs.dispatch.main()

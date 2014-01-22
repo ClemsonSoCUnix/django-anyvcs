@@ -16,7 +16,8 @@
 # along with django-anyvcs.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.db import models
-from django.db.models.signals import post_save, pre_delete, post_delete
+from django.db.models.signals import (pre_save, post_save, pre_delete,
+                                      post_delete)
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from . import settings
@@ -49,6 +50,12 @@ def removedirs(path, stop=None):
       if e.errno != errno.ENOTEMPTY:
         raise
       break
+
+def default_user_acl_function(repo):
+  return dict((x.user, x.rights) for x in repo.userrights_set.all())
+
+def default_group_acl_function(repo):
+  return dict((x.group, x.rights) for x in repo.grouprights_set.all())
 
 class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
@@ -115,6 +122,15 @@ class Repo(models.Model):
     context['path'] = self.name
     fmt = settings.VCSREPO_URI_FORMAT[(self.vcs, protocol)]
     return fmt.format(**context)
+
+  def pre_save(self, **kwargs):
+    if self.vcs == 'svn':
+      try:
+        r = type(self).objects.get(pk=self.pk)
+        if self.name != r.name:
+          self._prev_name = r.name
+      except type(self).DoesNotExist: ## if created
+        pass
 
   def post_save(self, created, **kwargs):
     if created:
@@ -223,19 +239,23 @@ class Repo(models.Model):
       d = { '-': '' }
       def rights(r):
         return d.get(r, r)
+      user_acl = (settings.VCSREPO_USER_ACL_FUNCTION or
+                   default_user_acl_function)(self)
+      group_acl = (settings.VCSREPO_GROUP_ACL_FUNCTION or
+                    default_group_acl_function)(self)
       with open(authz_path, 'a') as authz:
         authz.seek(0)
         fcntl.lockf(authz, fcntl.LOCK_EX)
         authz.truncate()
         authz.write('[groups]\n')
-        for gr in self.grouprights_set.all():
-          members = ','.join((u.username for u in gr.group.user_set.all()))
-          authz.write('@%s = %s\n' % (gr.group.name, members))
+        for g in group_acl.keys():
+          members = ','.join((u.username for u in g.user_set.all()))
+          authz.write('@%s = %s\n' % (g.name, members))
         authz.write('\n[/]\n')
-        for ur in self.userrights_set.all():
-          authz.write('%s = %s\n' % (ur.user.username, rights(ur.rights)))
-        for gr in self.grouprights_set.all():
-          authz.write('@%s = %s\n' % (gr.group.name, rights(gr.rights)))
+        for u, r in user_acl.iteritems(): 
+          authz.write('%s = %s\n' % (u.username, rights(r)))
+        for g, r in group_acl.iteritems():
+          authz.write('@%s = %s\n' % (g.name, rights(r)))
         if self.public_read:
           authz.write('* = r\n')
 
@@ -244,12 +264,21 @@ class Repo(models.Model):
       import errno
       byname_dir = os.path.join(settings.VCSREPO_ROOT, '.byname')
       link_path = os.path.join(byname_dir, self.name)
+      link_parent, link_name = os.path.split(link_path)
       if os.path.isabs(self.path):
         target = self.path
       else:
-        target = os.path.join(os.path.pardir, self.path)
+        def depth(path):
+          parent, leaf = os.path.split(path)
+          if parent:
+            return 1 + depth(parent)
+          else:
+            return 0
+        d = 1 + depth(self.name)
+        pardirs = os.path.join(*([os.path.pardir] * d))
+        target = os.path.join(pardirs, self.path)
       try:
-        os.makedirs(byname_dir)
+        os.makedirs(link_parent)
       except OSError as e:
         if e.errno != errno.EEXIST:
           raise
@@ -262,10 +291,36 @@ class Repo(models.Model):
           shutil.rmtree(link_path)
         os.symlink(target, link_path)
 
+  def remove_old_files(self):
+    try:
+      ## _prev_name gets set in pre_save when object is changed
+      prev_name = self._prev_name
+    except AttributeError:
+      ## assumption: not changed => no old files to clean up
+      return
+    if self.vcs == 'svn':
+      byname_dir = os.path.join(settings.VCSREPO_ROOT, '.byname')
+      byname_link = os.path.join(byname_dir, prev_name)
+      if os.path.exists(byname_link):
+        os.remove(byname_link)
+      parent, leaf = os.path.split(prev_name)
+      while parent:
+        d = os.path.join(byname_dir, parent)
+        try:
+          os.rmdir(d)
+          parent, leaf = os.path.split(parent)
+        except OSError as e:
+          import errno
+          if not e.errno == errno.ENOTEMPTY:
+            raise
+          else:
+            break
+
   def update_local_files(self):
     if self.vcs == 'svn':
       self.update_authz()
       self.update_byname_symlink()
+      self.remove_old_files()
 
 class UserRights(models.Model):
   repo = models.ForeignKey(Repo, db_index=True)
@@ -319,6 +374,9 @@ class GroupRights(models.Model):
     self.repo.last_modified = self.last_modified
     self.repo.save()
 
+def pre_save_proxy(sender, instance, **kwargs):
+  instance.pre_save(**kwargs)
+
 def post_save_proxy(sender, instance, **kwargs):
   instance.post_save(**kwargs)
 
@@ -329,6 +387,7 @@ def post_delete_proxy(sender, instance, **kwargs):
   instance.post_delete(**kwargs)
 
 # Repo signals
+pre_save.connect(pre_save_proxy, dispatch_uid=__name__, sender=Repo)
 post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=Repo)
 post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=Repo)
 

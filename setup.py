@@ -34,4 +34,9 @@ setup(
   install_requires=[
     'anyvcs',
   ],
+  entry_points = {
+    'console_scripts': [
+      'django-anyvcs-ssh = django_anyvcs.dispatch:main',
+    ],
+  },
 )

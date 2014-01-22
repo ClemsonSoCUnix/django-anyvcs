@@ -5,6 +5,9 @@ git flow release start X.Y.Z
 bump __version__ in django_anyvcs/__init__.py
 git add django_anyvcs/__init__.py
 git commit -m 'bump version'
+update release notes
+git add RELEASE-NOTES.txt
+git commit -m 'release notes for X.Y.Z'
 python setup.py sdist
 git flow release finish X.Y.Z
 git push origin master develop X.Y.Z

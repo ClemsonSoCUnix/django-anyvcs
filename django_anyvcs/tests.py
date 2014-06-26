@@ -119,6 +119,13 @@ class CreateRepoTestCase(BaseTestCase):
     repo.save()
     self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
 
+  def test_reserve(self):
+    for vcs in ('git', 'hg', 'svn'):
+      repo = Repo.objects.reserve(name='a', path='b', vcs=vcs)
+      self.assertFalse(os.path.exists(repo.abspath),
+                       'For vcs type %s: path exists' % vcs)
+      repo.delete()
+
 class LookupTestCase(BaseTestCase):
   @classmethod
   def setUpClass(cls):

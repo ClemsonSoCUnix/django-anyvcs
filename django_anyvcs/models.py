@@ -57,6 +57,20 @@ def default_user_acl_function(repo):
 def default_group_acl_function(repo):
   return dict((x.group, x.rights) for x in repo.grouprights_set.all())
 
+class RepoManager(models.Manager):
+
+  def reserve(self, **kw):
+    """ Hold the place of a repository that will be created later.
+
+    It is up to the caller to create the repository at a later time. Keyword
+    arguments will be passed to the constructor.
+    """
+    repo = self.model(**kw)
+    repo._reserved = True  # this flag is checked in post_save()
+    repo.full_clean()
+    repo.save()
+    return repo
+
 class Repo(models.Model):
   name = models.CharField(max_length=100, unique=True, db_index=True)
   path = models.CharField(max_length=100, unique=True, blank=True, verbose_name='Relative Path', help_text='Warning: Changing this does not rename the repository on disk!')
@@ -64,6 +78,8 @@ class Repo(models.Model):
   public_read = models.BooleanField(verbose_name='Public Read Access')
   created = models.DateTimeField(auto_now_add=True, null=True)
   last_modified = models.DateTimeField(auto_now=True, null=True)
+
+  objects = RepoManager()
 
   class Meta:
     db_table = 'anyvcs_repo'
@@ -133,7 +149,7 @@ class Repo(models.Model):
         pass
 
   def post_save(self, created, **kwargs):
-    if created:
+    if created and not getattr(self, '_reserved', False):
       try:
         os.makedirs(self.abspath)
       except OSError as e:
@@ -141,7 +157,7 @@ class Repo(models.Model):
         if e.errno != errno.EEXIST:
           raise
       self._repo = anyvcs.create(self.abspath, self.vcs)
-    if self.vcs == 'svn':
+    if self.vcs == 'svn' and os.path.exists(self.abspath):
       self.update_local_files()
 
   def post_delete(self, **kwargs):

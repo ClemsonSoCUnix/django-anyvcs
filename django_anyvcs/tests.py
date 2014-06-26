@@ -126,6 +126,26 @@ class CreateRepoTestCase(BaseTestCase):
                        'For vcs type %s: path exists' % vcs)
       repo.delete()
 
+  def test_fork(self):
+    for vcs in ('git', 'hg', 'svn'):
+      upstream = Repo.objects.create(name='upstream', path='upstream', vcs=vcs)
+      self.assertRaises(ValidationError, upstream.fork)
+      fork1 = upstream.fork(name='fork1')  # make sure path gets generated
+      fork2 = upstream.fork(name='fork2', path='fork2')
+
+      self.assertEqual('fork1', fork1.name)
+      self.assertEqual(upstream.public_read, fork1.public_read)
+      self.assertEqual(upstream.vcs, fork1.vcs)
+
+      self.assertEqual('fork2', fork2.name)
+      self.assertEqual('fork2', fork2.path)
+      self.assertEqual(upstream.public_read, fork2.public_read)
+      self.assertEqual(upstream.vcs, fork2.vcs)
+
+      upstream.delete()
+      fork1.delete()
+      fork2.delete()
+
 class LookupTestCase(BaseTestCase):
   @classmethod
   def setUpClass(cls):

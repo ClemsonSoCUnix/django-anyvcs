@@ -139,6 +139,21 @@ class Repo(models.Model):
     fmt = settings.VCSREPO_URI_FORMAT[(self.vcs, protocol)]
     return fmt.format(**context)
 
+  def fork(self, **kw):
+    """ Clone this repository to create a new one.
+
+    Keyword arguments are passed into `Repo.objects.reserve()`. Unless
+    overridden by keyword arguments, `public_read` is set from the upstream
+    repository. The upstream's value for `vcs` always overrides the keyword
+    arguments.
+    """
+    kw['vcs'] = self.vcs
+    kw.setdefault('vcs', self.vcs)
+    kw.setdefault('public_read', self.public_read)
+    repo = Repo.objects.reserve(**kw)
+    anyvcs.clone(self.abspath, repo.abspath, self.vcs)
+    return repo
+
   def pre_save(self, **kwargs):
     if self.vcs == 'svn':
       try:

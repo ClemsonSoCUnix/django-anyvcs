@@ -148,7 +148,6 @@ class Repo(models.Model):
     arguments.
     """
     kw['vcs'] = self.vcs
-    kw.setdefault('vcs', self.vcs)
     kw.setdefault('public_read', self.public_read)
     repo = Repo.objects.reserve(**kw)
     anyvcs.clone(self.abspath, repo.abspath, self.vcs)

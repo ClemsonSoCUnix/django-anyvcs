@@ -1,7 +1,7 @@
 Release Notes for django-anyvcs
 ===============================
 
-2.2.0 (2013-01-22)
+2.2.0 (2014-01-22)
 ------------------
 
 * Deprecate ssh_dispatch.py in favor of django-anyvcs-ssh

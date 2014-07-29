@@ -87,6 +87,9 @@ TEMPLATE_DIRS = (
   os.path.join(BASE_DIR, 'testproject', 'templates'),
 )
 
+import getpass
+import socket
+DEFAULT_FROM_EMAIL = '%s@%s' % (getpass.getuser(), socket.gethostname())
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 VCSREPO_ROOT = os.path.join(BASE_DIR, 'repo-root')

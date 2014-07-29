@@ -34,7 +34,7 @@ class DictEncoder(json.JSONEncoder):
 dictencoder = DictEncoder()
 
 def JsonResponse(data, *args, **kwargs):
-  kwargs.setdefault('mimetype', 'application/json')
+  kwargs.setdefault('content_type', 'application/json')
   json = dictencoder.encode(data)
   return HttpResponse(json, *args, **kwargs)
 
@@ -74,7 +74,7 @@ def access(request, repo):
       user = User.objects.get(username=username)
     except User.DoesNotExist:
       message = 'User does not exist: %s\n' % username
-      return HttpResponseNotFound(message, mimetype='text/plain')
+      return HttpResponseNotFound(message, content_type='text/plain')
 
   vcs = request.GET.get('vcs')
   qs = Repo.objects.all()
@@ -85,7 +85,7 @@ def access(request, repo):
     repo = qs.get(name=repo)
   except Repo.DoesNotExist:
     message = 'Repository does not exist: %s\n' % repo
-    return HttpResponseNotFound(message, mimetype='text/plain')
+    return HttpResponseNotFound(message, content_type='text/plain')
   data = repo_access_data(repo, user)
   return JsonResponse(data)
 
@@ -97,15 +97,15 @@ def api_call(request, repo, attr):
     repo = Repo.objects.get(name=repo)
   except Repo.DoesNotExist:
     message = 'Repository does not exist: %s\n' % repo
-    return HttpResponseNotFound(message, mimetype='text/plain')
+    return HttpResponseNotFound(message, content_type='text/plain')
   if not hasattr(repo.repo, attr):
     message = 'Attribute does not exist'
-    return HttpResponseNotFound(message, mimetype='text/plain')
+    return HttpResponseNotFound(message, content_type='text/plain')
   attr = getattr(repo.repo, attr)
   if request.method == 'POST':
     if not isinstance(attr, Callable):
       message = 'Attribute is not callable'
-      return HttpResponseNotFound(message, mimetype='text/plain')
+      return HttpResponseNotFound(message, content_type='text/plain')
     kwargs = json.load(request)
     try:
       data = attr(**kwargs)

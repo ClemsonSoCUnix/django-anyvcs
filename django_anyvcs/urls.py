@@ -15,7 +15,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with django-anyvcs.  If not, see <http://www.gnu.org/licenses/>.
 
-from django.conf.urls.defaults import patterns, url
+try:
+  from django.conf.urls import patterns, url
+except ImportError:
+  from django.conf.urls.defaults import patterns, url
 
 urlpatterns = patterns('django_anyvcs.views',
   url(r'^access/(?P<repo>.+)$', 'access'),

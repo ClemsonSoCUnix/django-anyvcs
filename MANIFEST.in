@@ -1,8 +1,6 @@
 include LICENSE
-include COPYING
-include COPYING.LESSER
-include README.md
-include README.upgrading.md
-include RELEASE-NOTES.txt
+include README.rst
+include README.upgrading.rst
+include RELEASE-NOTES.rst
 include ssh_dispatch.py
 recursive-include django_anyvcs/migrations *.py

@@ -1,10 +1,17 @@
+===============================
 Release Notes for django-anyvcs
 ===============================
 
-2.2.0 (2013-01-22)
+2.2.1 (2014-07-30)
 ------------------
 
-* Deprecate setup.py in favor of django-anyvcs-ssh
+* Change license to BSD 3-clause
+* Add support for Django 1.6
+
+2.2.0 (2014-01-22)
+------------------
+
+* Deprecate ssh_dispatch.py in favor of django-anyvcs-ssh
 * Deprecate VCS_URI_{FORMAT,CONTEXT} in favor of VCSREPO_URI_{FORMAT,CONTEXT}
 * Fix issue where Subversion bynames could not be in a directory hierarchy.
 * Add new settings VCSREPO_{GROUP,USER}_ACL_FUNCTION which allow backwards

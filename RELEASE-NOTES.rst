@@ -2,6 +2,12 @@
 Release Notes for django-anyvcs
 ===============================
 
+2.2.1 (2014-07-30)
+------------------
+
+* Change license to BSD 3-clause
+* Add support for Django 1.6
+
 2.2.0 (2014-01-22)
 ------------------
 

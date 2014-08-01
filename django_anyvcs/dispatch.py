@@ -29,10 +29,11 @@
 import os
 import sys
 
-VCSREPO_ROOT = os.getenv('VCSREPO_ROOT')
 GIT = os.getenv('GIT', 'git')
 HG = os.getenv('HG', 'hg')
 SVNSERVE = os.getenv('SVNSERVE', 'svnserve')
+VCSREPO_ROOT = os.getenv('VCSREPO_ROOT')
+VCSREPO_SVN_ROOT = os.getenv('VCSREPO_SVN_ROOT', VCSREPO_ROOT)
 
 class Request(object):
   postprocess = None
@@ -143,8 +144,8 @@ class SvnRequest(Request):
   vcs = 'svn'
 
   def get_command(self):
-    assert VCSREPO_ROOT is not None, 'VCSREPO_ROOT is not set'
-    byname_dir = os.path.join(VCSREPO_ROOT, '.byname')
+    assert VCSREPO_SVN_ROOT is not None, 'VCSREPO_SVN_ROOT is not set'
+    byname_dir = os.path.join(VCSREPO_SVN_ROOT, '.byname')
     cmd = [SVNSERVE, '--root', byname_dir, '--tunnel']
     if username is not None:
       cmd.extend(['--tunnel-user', username])

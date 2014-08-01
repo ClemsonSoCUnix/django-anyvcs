@@ -48,6 +48,11 @@ RIGHTS_CHOICES = (
   ('r', 'Read-Only'),
   ('rw', 'Read-Write'),
 )
+VCS_ROOT = {
+  'git': settings.VCSREPO_GIT_ROOT,
+  'hg': settings.VCSREPO_HG_ROOT,
+  'svn': settings.VCSREPO_SVN_ROOT,
+}
 
 name_rx = re.compile(r'^(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*/)*(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*)$')
 
@@ -85,8 +90,12 @@ class Repo(models.Model):
     return self.name
 
   @property
+  def _root(self):
+    return VCS_ROOT[self.vcs]
+
+  @property
   def abspath(self):
-    return os.path.join(settings.VCSREPO_ROOT, self.path)
+    return os.path.join(self._root, self.path)
 
   @property
   def repo(self):
@@ -159,11 +168,11 @@ class Repo(models.Model):
     import errno
     try:
       shutil.rmtree(self.abspath)
-      removedirs(os.path.dirname(self.abspath), settings.VCSREPO_ROOT)
+      removedirs(os.path.dirname(self.abspath), self._root)
     except OSError as e:
       if e.errno != errno.ENOENT:
         raise
-    byname_dir = os.path.join(settings.VCSREPO_ROOT, '.byname')
+    byname_dir = os.path.join(self._root, '.byname')
     link_path = os.path.join(byname_dir, self.name)
     try:
       os.unlink(link_path)
@@ -273,7 +282,7 @@ class Repo(models.Model):
   def update_byname_symlink(self):
     if self.vcs == 'svn':
       import errno
-      byname_dir = os.path.join(settings.VCSREPO_ROOT, '.byname')
+      byname_dir = os.path.join(self._root, '.byname')
       link_path = os.path.join(byname_dir, self.name)
       link_parent, link_name = os.path.split(link_path)
       if os.path.isabs(self.path):
@@ -310,7 +319,7 @@ class Repo(models.Model):
       ## assumption: not changed => no old files to clean up
       return
     if self.vcs == 'svn':
-      byname_dir = os.path.join(settings.VCSREPO_ROOT, '.byname')
+      byname_dir = os.path.join(self._root, '.byname')
       byname_link = os.path.join(byname_dir, prev_name)
       if os.path.exists(byname_link):
         os.remove(byname_link)

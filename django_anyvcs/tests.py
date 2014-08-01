@@ -56,8 +56,11 @@ URI_CONTEXT = {
 
 class BaseTestCase(TestCase):
   def setUp(self):
-    self.original_root = settings.VCSREPO_ROOT
+    from .models import VCS_ROOT
+    self.original_root = dict(VCS_ROOT.items())
     settings.VCSREPO_ROOT = tempfile.mkdtemp(prefix='anyvcs-test.')
+    for k in VCS_ROOT:
+      VCS_ROOT[k] = settings.VCSREPO_ROOT
     self.original_rights_function = settings.VCSREPO_RIGHTS_FUNCTION
     self.original_uri_format = settings.VCSREPO_URI_FORMAT
     settings.VCSREPO_URI_FORMAT = URI_FORMAT
@@ -68,7 +71,8 @@ class BaseTestCase(TestCase):
   def tearDown(self):
     Repo.objects.all().delete()
     shutil.rmtree(settings.VCSREPO_ROOT)
-    settings.VCSREPO_ROOT = self.original_root
+    from .models import VCS_ROOT
+    VCS_ROOT = self.original_root
     settings.VCSREPO_RIGHTS_FUNCTION = self.original_rights_function
     settings.VCSREPO_URI_FORMAT = self.original_uri_format
     settings.VCSREPO_URI_CONTEXT = self.original_uri_context

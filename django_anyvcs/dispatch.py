@@ -178,8 +178,7 @@ def ssh_dispatch(access_url, username):
     if request.repo_name:
       url = '%s/%s' % (access_url, request.repo_name)
       request.load_data(url, {'u': username, 'vcs': request.vcs})
-    print request.get_command()
-    #return request.run_command()
+    return request.run_command()
   except Exception as e:
     sys.stderr.write('Error: ' + str(e) + '\n')
     sys.exit(1)

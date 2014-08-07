@@ -53,11 +53,11 @@ class Request(object):
       url += '?' + urllib.urlencode(params)
     response = urllib.urlopen(url)
     status = response.getcode()
+    content_type = response.info().gettype()
     if status == 200:
       data = json.load(response)
       self.add_data(data)
     else:
-      content_type = response.info().gettype()
       if content_type == 'text/plain':
         raise Exception(response.readline().strip())
       if content_type == 'application/json':

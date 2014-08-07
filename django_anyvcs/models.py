@@ -263,8 +263,6 @@ class Repo(models.Model):
         conf.write('authz-db = authz\n')
       authz_path = os.path.join(self.abspath, 'conf', 'authz')
       d = { '-': '' }
-      def rights(r):
-        return d.get(r, r)
       user_acl = settings.VCSREPO_USER_ACL_FUNCTION(self)
       group_acl = settings.VCSREPO_GROUP_ACL_FUNCTION(self)
       with open(authz_path, 'a') as authz:
@@ -277,9 +275,9 @@ class Repo(models.Model):
           authz.write('@%s = %s\n' % (g.name, members))
         authz.write('\n[/]\n')
         for u, r in user_acl.iteritems(): 
-          authz.write('%s = %s\n' % (u.username, rights(r)))
+          authz.write('%s = %s\n' % (u.username, d.get(r, r)))
         for g, r in group_acl.iteritems():
-          authz.write('@%s = %s\n' % (g.name, rights(r)))
+          authz.write('@%s = %s\n' % (g.name, d.get(r, r)))
         if self.public_read:
           authz.write('* = r\n')
 

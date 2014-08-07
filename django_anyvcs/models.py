@@ -62,12 +62,6 @@ def removedirs(path, stop=None):
         raise
       break
 
-def default_user_acl_function(repo):
-  return dict((x.user, x.rights) for x in repo.userrights_set.all())
-
-def default_group_acl_function(repo):
-  return dict((x.group, x.rights) for x in repo.grouprights_set.all())
-
 class Repo(models.Model):
   name = models.CharField(
     max_length = 100,
@@ -271,10 +265,8 @@ class Repo(models.Model):
       d = { '-': '' }
       def rights(r):
         return d.get(r, r)
-      user_acl = (settings.VCSREPO_USER_ACL_FUNCTION or
-                   default_user_acl_function)(self)
-      group_acl = (settings.VCSREPO_GROUP_ACL_FUNCTION or
-                    default_group_acl_function)(self)
+      user_acl = settings.VCSREPO_USER_ACL_FUNCTION(self)
+      group_acl = settings.VCSREPO_GROUP_ACL_FUNCTION(self)
       with open(authz_path, 'a') as authz:
         authz.seek(0)
         fcntl.lockf(authz, fcntl.LOCK_EX)

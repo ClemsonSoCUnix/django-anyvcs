@@ -44,12 +44,18 @@ def default_path(repo):
   ]
   return os.path.join(*p)
 
+def default_user_acl_function(repo):
+  return dict((x.user, x.rights) for x in repo.userrights_set.all())
+
+def default_group_acl_function(repo):
+  return dict((x.group, x.rights) for x in repo.grouprights_set.all())
+
 VCSREPO_ROOT = settings.VCSREPO_ROOT
 VCSREPO_PATH_FUNCTION = getattr(settings, 'VCSREPO_RELPATH_FUNCTION', default_path)
 
 VCSREPO_RIGHTS_FUNCTION = getattr(settings, 'VCSREPO_RIGHTS_FUNCTION', None)
-VCSREPO_USER_ACL_FUNCTION = getattr(settings, 'VCSREPO_USER_ACL_FUNCTION', None)
-VCSREPO_GROUP_ACL_FUNCTION = getattr(settings, 'VCSREPO_GROUP_ACL_FUNCTION', None)
+VCSREPO_USER_ACL_FUNCTION = getattr(settings, 'VCSREPO_USER_ACL_FUNCTION', default_user_acl_function)
+VCSREPO_GROUP_ACL_FUNCTION = getattr(settings, 'VCSREPO_GROUP_ACL_FUNCTION', default_group_acl_function)
 
 if hasattr(settings, 'VCS_URI_FORMAT'):
   import warnings

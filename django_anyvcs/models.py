@@ -69,12 +69,36 @@ def default_group_acl_function(repo):
   return dict((x.group, x.rights) for x in repo.grouprights_set.all())
 
 class Repo(models.Model):
-  name = models.CharField(max_length=100, unique=True, db_index=True)
-  path = models.CharField(max_length=100, unique=True, blank=True, verbose_name='Relative Path', help_text='Warning: Changing this does not rename the repository on disk!')
-  vcs = models.CharField(max_length=3, choices=VCS_CHOICES, default='git', verbose_name='Version Control System')
-  public_read = models.BooleanField(verbose_name='Public Read Access', default=False)
-  created = models.DateTimeField(auto_now_add=True, null=True)
-  last_modified = models.DateTimeField(auto_now=True, null=True)
+  name = models.CharField(
+    max_length = 100,
+    unique = True,
+    db_index = True,
+  )
+  path = models.CharField(
+    max_length = 100,
+    unique = True,
+    blank = True,
+    verbose_name = 'Relative Path',
+    help_text = 'Warning: Changing this does not rename the repository on disk!',
+  )
+  vcs = models.CharField(
+    max_length = 3,
+    default = 'git',
+    choices = VCS_CHOICES,
+    verbose_name = 'Version Control System',
+  )
+  public_read = models.BooleanField(
+    default = False,
+    verbose_name = 'Public Read Access',
+  )
+  created = models.DateTimeField(
+    null = True,
+    auto_now_add = True,
+  )
+  last_modified = models.DateTimeField(
+    null = True,
+    auto_now = True,
+  )
 
   class Meta:
     db_table = 'anyvcs_repo'
@@ -331,11 +355,27 @@ class Repo(models.Model):
       self.remove_old_files()
 
 class UserRights(models.Model):
-  repo = models.ForeignKey(Repo, db_index=True)
-  user = models.ForeignKey(User, db_index=True)
-  rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='rw')
-  created = models.DateTimeField(auto_now_add=True, null=True)
-  last_modified = models.DateTimeField(auto_now=True, null=True)
+  repo = models.ForeignKey(
+    Repo,
+    db_index = True,
+  )
+  user = models.ForeignKey(
+    User,
+    db_index = True,
+  )
+  rights = models.CharField(
+    max_length = 2,
+    default = 'rw',
+    choices = RIGHTS_CHOICES,
+  )
+  created = models.DateTimeField(
+    null = True,
+    auto_now_add = True,
+  )
+  last_modified = models.DateTimeField(
+    null = True,
+    auto_now = True,
+  )
 
   class Meta:
     db_table = 'anyvcs_userrights'
@@ -357,11 +397,27 @@ class UserRights(models.Model):
     self.repo.save()
 
 class GroupRights(models.Model):
-  repo = models.ForeignKey(Repo, db_index=True)
-  group = models.ForeignKey(Group, db_index=True)
-  rights = models.CharField(max_length=2, choices=RIGHTS_CHOICES, default='rw')
-  created = models.DateTimeField(auto_now_add=True, null=True)
-  last_modified = models.DateTimeField(auto_now=True, null=True)
+  repo = models.ForeignKey(
+    Repo,
+    db_index = True,
+  )
+  group = models.ForeignKey(
+    Group,
+    db_index = True,
+  )
+  rights = models.CharField(
+    max_length = 2,
+    default = 'rw',
+    choices = RIGHTS_CHOICES,
+  )
+  created = models.DateTimeField(
+    null = True,
+    auto_now_add = True,
+  )
+  last_modified = models.DateTimeField(
+    null = True,
+    auto_now = True,
+  )
 
   class Meta:
     db_table = 'anyvcs_grouprights'

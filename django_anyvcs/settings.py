@@ -30,7 +30,23 @@ from django.conf import settings
 import getpass
 import socket
 
+def default_path(repo):
+  import os
+  import uuid
+  h = uuid.uuid1().hex
+  p = [
+    repo.vcs,
+    h[0:2],
+    h[2:4],
+    h[4:6],
+    h[6:8],
+    h[8:],
+  ]
+  return os.path.join(*p)
+
 VCSREPO_ROOT = settings.VCSREPO_ROOT
+VCSREPO_PATH_FUNCTION = getattr(settings, 'VCSREPO_RELPATH_FUNCTION', default_path)
+
 VCSREPO_RIGHTS_FUNCTION = getattr(settings, 'VCSREPO_RIGHTS_FUNCTION', None)
 VCSREPO_USER_ACL_FUNCTION = getattr(settings, 'VCSREPO_USER_ACL_FUNCTION', None)
 VCSREPO_GROUP_ACL_FUNCTION = getattr(settings, 'VCSREPO_GROUP_ACL_FUNCTION', None)

@@ -177,7 +177,8 @@ class Repo(models.Model):
       makedirs(os.path.dirname(self.abspath))
       old_abspath = os.path.join(settings.VCSREPO_ROOT, self._old_path)
       shutil.move(old_abspath, self.abspath)
-      removedirs(os.path.dirname(old_abspath), settings.VCSREPO_ROOT)
+      if not os.path.isabs(self._old_path):
+        removedirs(os.path.dirname(old_abspath), settings.VCSREPO_ROOT)
     self._old_path = self.path
     if self.vcs == 'svn':
       self.update_svnserve()

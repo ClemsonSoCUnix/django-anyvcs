@@ -2,6 +2,27 @@
 Release Notes for django-anyvcs
 ===============================
 
+2.3.0 (2014-08-08)
+------------------
+
+* UserRights and GroupRights can be attached to different User and Group models
+  or disabled entirely
+* Directory structure of VCSREPO_ROOT was simplified
+  * Backwards compatible for git and Mercurial
+  * Must run "relocate path" admin action on all Subversion repositories
+  * .byname directory is no longer needed
+  * Directory structure is configurable, run "relocate paths" admin action to
+    apply new structure
+  * Default structure separates different VCS types into subdirectories
+* Changing the path now moves the repository on disk
+* Allow for absolute paths for repositories
+* dispatch.py is now more reusable/extendable
+* Default Repo ordering is now set by name
+* Bug fix: Subversion authz file was not being updated when UserRights or
+  GroupRights was deleted
+* Bug fix: auth.Group membership changes were not picked up in Subversion authz
+  file
+
 2.2.1 (2014-07-30)
 ------------------
 
@@ -32,7 +53,7 @@ Migration label: 0004
 * An empty Repo.path is now populated with a path based on a UUID, and
   arranged in subdirectories so that the top-level directory is not overrun
   with thousands or more files.
-* A more useful admin panel
+* A more useful admin site
 * Major bug fix for Subversion so that repo name can be different from path
 * A few small bug fixes
 

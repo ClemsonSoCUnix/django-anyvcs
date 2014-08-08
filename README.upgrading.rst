@@ -33,6 +33,17 @@ To downgrade, perform the migration down to the label of the desired version
 before installing the older django-anyvcs.
 
 
+Upgrading from pre-2.3
+----------------------
+
+django-anyvcs 2.3 reorganizes the VCSREPO_ROOT directory structure.  The
+changes are fully backwards compatible with git and Mercurial, but temporarily
+breaks accessing Subversion over SSH.  To fix this, enter the Django admin
+site, select all Subversion repositories and run the "relocate path" action.
+
+If you want the new directory structure applied to git and Mercurial
+repositories as well, run the "relocate path" action on them as well.
+
 Upgrading from 1.1.x to 2.x
 ---------------------------
 

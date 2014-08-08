@@ -109,6 +109,17 @@ class CreateRepoTestCase(BaseTestCase):
     repo.save()
     self.assertIsInstance(repo.repo, anyvcs.git.GitRepo)
 
+  def test_git_absolute_path(self):
+    d = tempfile.mkdtemp(prefix='anyvcs-test.')
+    path = os.path.join(d, 'repo')
+    repo = Repo(name='a', path=path, vcs='git')
+    repo.full_clean()
+    repo.save()
+    self.assertEqual(repo.path, path)
+    self.assertEqual(repo.abspath, path)
+    self.assertIsInstance(repo.repo, anyvcs.git.GitRepo)
+    shutil.rmtree(d)
+
   def test_hg(self):
     repo = Repo(name='a', path='b', vcs='hg')
     repo.full_clean()
@@ -123,6 +134,17 @@ class CreateRepoTestCase(BaseTestCase):
     repo.save()
     self.assertIsInstance(repo.repo, anyvcs.hg.HgRepo)
 
+  def test_hg_absolute_path(self):
+    d = tempfile.mkdtemp(prefix='anyvcs-test.')
+    path = os.path.join(d, 'repo')
+    repo = Repo(name='a', path=path, vcs='hg')
+    repo.full_clean()
+    repo.save()
+    self.assertEqual(repo.path, path)
+    self.assertEqual(repo.abspath, path)
+    self.assertIsInstance(repo.repo, anyvcs.hg.HgRepo)
+    shutil.rmtree(d)
+
   def test_svn(self):
     repo = Repo(name='a', path='b', vcs='svn')
     repo.full_clean()
@@ -136,7 +158,19 @@ class CreateRepoTestCase(BaseTestCase):
     repo.full_clean()
     repo.save()
     self.assertEqual(repo.path, os.path.join('svn', 'a'))
+    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'svn', 'a'))
     self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
+
+  def test_svn_absolute_path(self):
+    d = tempfile.mkdtemp(prefix='anyvcs-test.')
+    path = os.path.join(d, 'repo')
+    repo = Repo(name='a', path=path, vcs='svn')
+    repo.full_clean()
+    repo.save()
+    self.assertEqual(repo.path, os.path.join('svn', 'a'))
+    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'svn', 'a'))
+    self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
+    shutil.rmtree(d)
 
 class ChangeRepoTestCase(BaseTestCase):
   def test_rename_git(self):

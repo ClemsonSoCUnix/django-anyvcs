@@ -218,7 +218,7 @@ class Repo(models.Model):
         # is this a child of another repo? (is this the a/b for another a)
         updirs = []
         p = self.path
-        while p:
+        while p and p != '/':
           p = os.path.dirname(p)
           updirs.append(p)
         qs = type(self).objects.filter(path__in=updirs)

@@ -31,8 +31,8 @@ from django.test.client import Client
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
-from django_anyvcs.models import Repo, UserRights, GroupRights
-from django_anyvcs import settings
+from .models import Repo
+from . import settings
 import anyvcs.git, anyvcs.hg, anyvcs.svn
 import json
 import os
@@ -58,18 +58,15 @@ class BaseTestCase(TestCase):
   def setUp(self):
     self.original_root = settings.VCSREPO_ROOT
     settings.VCSREPO_ROOT = tempfile.mkdtemp(prefix='anyvcs-test.')
-    self.original_rights_function = settings.VCSREPO_RIGHTS_FUNCTION
     self.original_uri_format = settings.VCSREPO_URI_FORMAT
     settings.VCSREPO_URI_FORMAT = URI_FORMAT
     self.original_uri_context = settings.VCSREPO_URI_CONTEXT
     settings.VCSREPO_URI_CONTEXT = URI_CONTEXT
-    settings.VCSREPO_RIGHTS_FUNCTION = None
 
   def tearDown(self):
     Repo.objects.all().delete()
     shutil.rmtree(settings.VCSREPO_ROOT)
     settings.VCSREPO_ROOT = self.original_root
-    settings.VCSREPO_RIGHTS_FUNCTION = self.original_rights_function
     settings.VCSREPO_URI_FORMAT = self.original_uri_format
     settings.VCSREPO_URI_CONTEXT = self.original_uri_context
 
@@ -258,99 +255,105 @@ class LookupTestCase(BaseTestCase):
       self.assertEqual(document['rights'], public_rights)
       repo.delete()
 
-  def test_user_overrides_public_read(self):
-    vcs = 'git'
-    for public_read, public_rights in ((False, '-'), (True, 'r')):
-      for user_rights in ('-', 'r', 'rw'):
-        repo = Repo.objects.create(
-          name = 'repo',
-          path = 'repo',
-          vcs = vcs,
-          public_read = public_read,
-        )
-        UserRights.objects.create(
-          repo = repo,
-          user = self.user1,
-          rights = user_rights,
-        )
-        client = Client()
-        url = reverse('django_anyvcs.views.access', args=(repo.name,))
-        response = client.get(url, {'u': self.user1.username})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Content-Type', response)
-        self.assertEqual(response['Content-Type'], 'application/json')
-        document = json.loads(response.content)
-        self.assertIn('path', document)
-        self.assertEqual(document['path'], os.path.join(settings.VCSREPO_ROOT, 'repo'))
-        self.assertIn('vcs', document)
-        self.assertEqual(document['vcs'], vcs)
-        self.assertIn('rights', document)
-        self.assertEqual(document['rights'], user_rights)
-        repo.delete()
+  if settings.VCSREPO_USE_USER_RIGHTS:
+    def test_user_overrides_public_read(self):
+      from .models import UserRights
+      vcs = 'git'
+      for public_read, public_rights in ((False, '-'), (True, 'r')):
+        for user_rights in ('-', 'r', 'rw'):
+          repo = Repo.objects.create(
+            name = 'repo',
+            path = 'repo',
+            vcs = vcs,
+            public_read = public_read,
+          )
+          UserRights.objects.create(
+            repo = repo,
+            user = self.user1,
+            rights = user_rights,
+          )
+          client = Client()
+          url = reverse('django_anyvcs.views.access', args=(repo.name,))
+          response = client.get(url, {'u': self.user1.username})
+          self.assertEqual(response.status_code, 200)
+          self.assertIn('Content-Type', response)
+          self.assertEqual(response['Content-Type'], 'application/json')
+          document = json.loads(response.content)
+          self.assertIn('path', document)
+          self.assertEqual(document['path'], os.path.join(settings.VCSREPO_ROOT, 'repo'))
+          self.assertIn('vcs', document)
+          self.assertEqual(document['vcs'], vcs)
+          self.assertIn('rights', document)
+          self.assertEqual(document['rights'], user_rights)
+          repo.delete()
 
-  def test_group_overrides_public_read(self):
-    vcs = 'hg'
-    for public_read, public_rights in ((False, '-'), (True, 'r')):
+  if settings.VCSREPO_USE_GROUP_RIGHTS:
+    def test_group_overrides_public_read(self):
+      from .models import GroupRights
+      vcs = 'hg'
+      for public_read, public_rights in ((False, '-'), (True, 'r')):
+        for group_rights in ('-', 'r', 'rw'):
+          repo = Repo.objects.create(
+            name = 'repo',
+            path = 'repo',
+            vcs = vcs,
+            public_read = public_read,
+          )
+          GroupRights.objects.create(
+            repo = repo,
+            group = self.group1,
+            rights = group_rights,
+          )
+          client = Client()
+          url = reverse('django_anyvcs.views.access', args=(repo.name,))
+          response = client.get(url, {'u': self.user1.username})
+          self.assertEqual(response.status_code, 200)
+          self.assertIn('Content-Type', response)
+          self.assertEqual(response['Content-Type'], 'application/json')
+          document = json.loads(response.content)
+          self.assertIn('path', document)
+          self.assertEqual(document['path'], os.path.join(settings.VCSREPO_ROOT, 'repo'))
+          self.assertIn('vcs', document)
+          self.assertEqual(document['vcs'], vcs)
+          self.assertIn('rights', document)
+          self.assertEqual(document['rights'], group_rights)
+          repo.delete()
+
+  if settings.VCSREPO_USE_USER_RIGHTS and settings.VCSREPO_USE_GROUP_RIGHTS:
+    def test_user_overrides_group_rights(self):
+      from .models import UserRights, GroupRights
+      vcs = 'git'
       for group_rights in ('-', 'r', 'rw'):
-        repo = Repo.objects.create(
-          name = 'repo',
-          path = 'repo',
-          vcs = vcs,
-          public_read = public_read,
-        )
-        GroupRights.objects.create(
-          repo = repo,
-          group = self.group1,
-          rights = group_rights,
-        )
-        client = Client()
-        url = reverse('django_anyvcs.views.access', args=(repo.name,))
-        response = client.get(url, {'u': self.user1.username})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Content-Type', response)
-        self.assertEqual(response['Content-Type'], 'application/json')
-        document = json.loads(response.content)
-        self.assertIn('path', document)
-        self.assertEqual(document['path'], os.path.join(settings.VCSREPO_ROOT, 'repo'))
-        self.assertIn('vcs', document)
-        self.assertEqual(document['vcs'], vcs)
-        self.assertIn('rights', document)
-        self.assertEqual(document['rights'], group_rights)
-        repo.delete()
-
-  def test_user_overrides_group_rights(self):
-    vcs = 'git'
-    for group_rights in ('-', 'r', 'rw'):
-      for user_rights in ('-', 'r', 'rw'):
-        repo = Repo.objects.create(
-          name = 'repo',
-          path = 'repo',
-          vcs = vcs,
-        )
-        UserRights.objects.create(
-          repo = repo,
-          user = self.user1,
-          rights = user_rights,
-        )
-        GroupRights.objects.create(
-          repo = repo,
-          group = self.group1,
-          rights = group_rights,
-        )
-        client = Client()
-        url = reverse('django_anyvcs.views.access', args=(repo.name,))
-        response = client.get(url, {'u': self.user1.username})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Content-Type', response)
-        self.assertEqual(response['Content-Type'], 'application/json')
-        document = json.loads(response.content)
-        self.assertIn('path', document)
-        self.assertEqual(document['path'], os.path.join(settings.VCSREPO_ROOT, 'repo'))
-        self.assertIn('vcs', document)
-        self.assertEqual(document['vcs'], vcs)
-        self.assertIn('rights', document)
-        self.assertEqual(document['rights'], user_rights)
-        repo.delete()
+        for user_rights in ('-', 'r', 'rw'):
+          repo = Repo.objects.create(
+            name = 'repo',
+            path = 'repo',
+            vcs = vcs,
+          )
+          UserRights.objects.create(
+            repo = repo,
+            user = self.user1,
+            rights = user_rights,
+          )
+          GroupRights.objects.create(
+            repo = repo,
+            group = self.group1,
+            rights = group_rights,
+          )
+          client = Client()
+          url = reverse('django_anyvcs.views.access', args=(repo.name,))
+          response = client.get(url, {'u': self.user1.username})
+          self.assertEqual(response.status_code, 200)
+          self.assertIn('Content-Type', response)
+          self.assertEqual(response['Content-Type'], 'application/json')
+          document = json.loads(response.content)
+          self.assertIn('path', document)
+          self.assertEqual(document['path'], os.path.join(settings.VCSREPO_ROOT, 'repo'))
+          self.assertIn('vcs', document)
+          self.assertEqual(document['vcs'], vcs)
+          self.assertIn('rights', document)
+          self.assertEqual(document['rights'], user_rights)
+          repo.delete()
 
   def test_rights_function(self):
     repo = Repo.objects.create(
@@ -358,21 +361,25 @@ class LookupTestCase(BaseTestCase):
       path = 'repo',
       vcs = 'git',
     )
-    for rights in ('-', 'r', 'rw'):
-      def f(r, u):
-        self.assertEqual(repo, r)
-        self.assertEqual(self.user1, u)
-        return rights
-      settings.VCSREPO_RIGHTS_FUNCTION = f
-      client = Client()
-      url = reverse('django_anyvcs.views.access', args=(repo.name,))
-      response = client.get(url, {'u': self.user1.username})
-      self.assertEqual(response.status_code, 200)
-      self.assertIn('Content-Type', response)
-      self.assertEqual(response['Content-Type'], 'application/json')
-      document = json.loads(response.content)
-      self.assertIn('rights', document)
-      self.assertEqual(document['rights'], rights)
+    original_rights_function = settings.VCSREPO_RIGHTS_FUNCTION
+    try:
+      for rights in ('-', 'r', 'rw'):
+        def f(r, u):
+          self.assertEqual(repo, r)
+          self.assertEqual(self.user1, u)
+          return rights
+        settings.VCSREPO_RIGHTS_FUNCTION = f
+        client = Client()
+        url = reverse('django_anyvcs.views.access', args=(repo.name,))
+        response = client.get(url, {'u': self.user1.username})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Content-Type', response)
+        self.assertEqual(response['Content-Type'], 'application/json')
+        document = json.loads(response.content)
+        self.assertIn('rights', document)
+        self.assertEqual(document['rights'], rights)
+    finally:
+      settings.VCSREPO_RIGHTS_FUNCTION = original_rights_function
 
 class RepoUriTestCase(BaseTestCase):
   def test_svn(self):

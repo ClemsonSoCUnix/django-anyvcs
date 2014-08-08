@@ -30,10 +30,16 @@ from django.http import HttpResponse, HttpResponseNotFound
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.core.exceptions import PermissionDenied
-from django.contrib.auth.models import User
 from . import models, settings
-from models import Repo, UserRights, GroupRights
+from .models import Repo
 import json
+
+try:
+  from django.contrib.auth import get_user_model
+except ImportError:
+  from django.contrib.auth.models import User
+  def get_user_model():
+    return User
 
 class DictEncoder(json.JSONEncoder):
   def default(self, o):
@@ -49,41 +55,18 @@ def JsonResponse(data, *args, **kwargs):
   json = dictencoder.encode(data)
   return HttpResponse(json, *args, **kwargs)
 
-def default_rights_function(repo, user):
-  if user is not None:
-    try:
-      userrights = UserRights.objects.get(repo=repo, user=user)
-      return userrights.rights
-    except UserRights.DoesNotExist:
-      rights = None
-      for group in user.groups.all():
-        try:
-          grouprights = GroupRights.objects.get(repo=repo, group=group)
-          if rights is None or len(grouprights.rights) < rights:
-            rights = grouprights.rights
-        except GroupRights.DoesNotExist:
-          pass
-      if rights is not None:
-        return rights
-  if repo.public_read:
-    return 'r'
-  return '-'
-
 def repo_access_data(repo, user):
-  rights = None
-  if settings.VCSREPO_RIGHTS_FUNCTION:
-    rights = settings.VCSREPO_RIGHTS_FUNCTION(repo, user)
-  if rights is None:
-    rights = default_rights_function(repo, user)
+  rights = settings.VCSREPO_RIGHTS_FUNCTION(repo, user)
   return { 'rights': rights, 'vcs': repo.vcs, 'path': repo.abspath }
 
 def access(request, repo):
   username = request.GET.get('u')
   user = None
   if username:
+    UserModel = get_user_model()
     try:
-      user = User.objects.get(username=username)
-    except User.DoesNotExist:
+      user = UserModel.objects.get(username=username)
+    except UserModel.DoesNotExist:
       message = 'User does not exist: %s\n' % username
       return HttpResponseNotFound(message, content_type='text/plain')
 

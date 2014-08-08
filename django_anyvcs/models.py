@@ -28,7 +28,6 @@
 
 from django.db import models
 from django.db.models.signals import post_save, post_delete
-from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from . import settings
 import anyvcs
@@ -68,6 +67,13 @@ def removedirs(path, stop=None):
       if e.errno == errno.ENOTEMPTY:
         break
       raise
+
+def post_save_proxy(sender, instance, **kwargs):
+  instance.post_save(**kwargs)
+
+def post_delete_proxy(sender, instance, **kwargs):
+  instance.post_delete(**kwargs)
+
 
 class Repo(models.Model):
   name = models.CharField(
@@ -244,122 +250,129 @@ class Repo(models.Model):
       conf.write('authz-db = authz\n')
     authz_path = os.path.join(self.abspath, 'conf', 'authz')
     d = { '-': '' }
-    user_acl = settings.VCSREPO_USER_ACL_FUNCTION(self)
-    group_acl = settings.VCSREPO_GROUP_ACL_FUNCTION(self)
     with open(authz_path, 'a') as authz:
       authz.seek(0)
       fcntl.lockf(authz, fcntl.LOCK_EX)
       authz.truncate()
-      authz.write('[groups]\n')
-      for g in group_acl.keys():
-        members = ','.join((u.username for u in g.user_set.all()))
-        authz.write('@%s = %s\n' % (g.name, members))
+      if settings.VCSREPO_GROUP_ACL_FUNCTION:
+        authz.write('[groups]\n')
+        group_acl = settings.VCSREPO_GROUP_ACL_FUNCTION(self)
+        for g in group_acl.keys():
+          members = ','.join((u.username for u in g.user_set.all()))
+          authz.write('@%s = %s\n' % (g.name, members))
       authz.write('\n[/]\n')
-      for u, r in user_acl.iteritems(): 
-        authz.write('%s = %s\n' % (u.username, d.get(r, r)))
-      for g, r in group_acl.iteritems():
-        authz.write('@%s = %s\n' % (g.name, d.get(r, r)))
+      if settings.VCSREPO_USER_ACL_FUNCTION:
+        user_acl = settings.VCSREPO_USER_ACL_FUNCTION(self)
+        for u, r in user_acl.iteritems(): 
+          authz.write('%s = %s\n' % (u.username, d.get(r, r)))
+      if settings.VCSREPO_USE_GROUP_RIGHTS:
+        for g, r in group_acl.iteritems():
+          authz.write('@%s = %s\n' % (g.name, d.get(r, r)))
       if self.public_read:
         authz.write('* = r\n')
-
-class UserRights(models.Model):
-  repo = models.ForeignKey(
-    Repo,
-    db_index = True,
-  )
-  user = models.ForeignKey(
-    User,
-    db_index = True,
-  )
-  rights = models.CharField(
-    max_length = 2,
-    default = 'rw',
-    choices = RIGHTS_CHOICES,
-  )
-  created = models.DateTimeField(
-    null = True,
-    auto_now_add = True,
-  )
-  last_modified = models.DateTimeField(
-    null = True,
-    auto_now = True,
-  )
-
-  class Meta:
-    db_table = 'anyvcs_userrights'
-    unique_together = ('repo', 'user')
-    verbose_name = 'User Access Rights'
-    verbose_name_plural = 'User Access Rights'
-
-  def __unicode__(self):
-    return u'%s/%s' % (self.repo, self.user)
-
-  def post_save(self, created, **kwargs):
-    self.repo.update_svnserve()
-    self.repo.last_modified = self.last_modified
-    self.repo.save()
-
-  def post_delete(self, **kwargs):
-    self.repo.update_svnserve()
-    self.repo.last_modified = self.last_modified
-    self.repo.save()
-
-class GroupRights(models.Model):
-  repo = models.ForeignKey(
-    Repo,
-    db_index = True,
-  )
-  group = models.ForeignKey(
-    Group,
-    db_index = True,
-  )
-  rights = models.CharField(
-    max_length = 2,
-    default = 'rw',
-    choices = RIGHTS_CHOICES,
-  )
-  created = models.DateTimeField(
-    null = True,
-    auto_now_add = True,
-  )
-  last_modified = models.DateTimeField(
-    null = True,
-    auto_now = True,
-  )
-
-  class Meta:
-    db_table = 'anyvcs_grouprights'
-    unique_together = ('repo', 'group')
-    verbose_name = 'Group Access Rights'
-    verbose_name_plural = 'Group Access Rights'
-
-  def __unicode__(self):
-    return u'%s/%s' % (self.repo, self.group)
-
-  def post_save(self, created, **kwargs):
-    self.repo.update_svnserve()
-    self.repo.last_modified = self.last_modified
-    self.repo.save()
-
-  def post_delete(self, **kwargs):
-    self.repo.update_svnserve()
-    self.repo.last_modified = self.last_modified
-    self.repo.save()
-
-def post_save_proxy(sender, instance, **kwargs):
-  instance.post_save(**kwargs)
-
-def post_delete_proxy(sender, instance, **kwargs):
-  instance.post_delete(**kwargs)
 
 # Repo signals
 post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=Repo)
 post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=Repo)
 
-# UserRights signals
-post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=UserRights)
-post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=UserRights)
 
-# GroupRights signals
-post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=GroupRights)
-post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=GroupRights)
+if settings.VCSREPO_USE_USER_RIGHTS:
+  class UserRights(models.Model):
+    repo = models.ForeignKey(
+      Repo,
+      db_index = True,
+    )
+    user = models.ForeignKey(
+      settings.VCSREPO_USER_MODEL,
+      db_index = True,
+    )
+    rights = models.CharField(
+      max_length = 2,
+      default = 'rw',
+      choices = RIGHTS_CHOICES,
+    )
+    created = models.DateTimeField(
+      null = True,
+      auto_now_add = True,
+    )
+    last_modified = models.DateTimeField(
+      null = True,
+      auto_now = True,
+    )
+
+    class Meta:
+      db_table = 'anyvcs_userrights'
+      unique_together = ('repo', 'user')
+      verbose_name = 'User Access Rights'
+      verbose_name_plural = 'User Access Rights'
+
+    def __unicode__(self):
+      return u'%s/%s' % (self.repo, self.user)
+
+    def post_save(self, created, **kwargs):
+      self.repo.update_svnserve()
+      self.repo.last_modified = self.last_modified
+      self.repo.save()
+
+    def post_delete(self, **kwargs):
+      try:
+        self.repo.update_svnserve()
+        self.repo.last_modified = self.last_modified
+        self.repo.save()
+      except Repo.DoesNotExist:
+        pass
+
+  # UserRights signals
+  post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=UserRights)
+  post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=UserRights)
+
+
+if settings.VCSREPO_USE_GROUP_RIGHTS:
+  class GroupRights(models.Model):
+    repo = models.ForeignKey(
+      Repo,
+      db_index = True,
+    )
+    group = models.ForeignKey(
+      settings.VCSREPO_GROUP_MODEL,
+      db_index = True,
+    )
+    rights = models.CharField(
+      max_length = 2,
+      default = 'rw',
+      choices = RIGHTS_CHOICES,
+    )
+    created = models.DateTimeField(
+      null = True,
+      auto_now_add = True,
+    )
+    last_modified = models.DateTimeField(
+      null = True,
+      auto_now = True,
+    )
+
+    class Meta:
+      db_table = 'anyvcs_grouprights'
+      unique_together = ('repo', 'group')
+      verbose_name = 'Group Access Rights'
+      verbose_name_plural = 'Group Access Rights'
+
+    def __unicode__(self):
+      return u'%s/%s' % (self.repo, self.group)
+
+    def post_save(self, created, **kwargs):
+      self.repo.update_svnserve()
+      self.repo.last_modified = self.last_modified
+      self.repo.save()
+
+    def post_delete(self, **kwargs):
+      try:
+        self.repo.update_svnserve()
+        self.repo.last_modified = self.last_modified
+        self.repo.save()
+      except Repo.DoesNotExist:
+        pass
+
+  # GroupRights signals
+  post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=GroupRights)
+  post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=GroupRights)

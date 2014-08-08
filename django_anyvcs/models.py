@@ -207,27 +207,24 @@ class Repo(models.Model):
         self.path = os.path.join('svn', self.name)
       elif not self.path:
         self.path = settings.VCSREPO_PATH_FUNCTION(self)
-      if name_rx.match(self.path):
-        # verify we aren't nesting repo paths (e.g. a and a/b)
-        # is this a parent of another repo? (is this the a for another a/b)
-        if self.vcs != 'hg': # subrepos are ok for hg
-          qs = type(self).objects.filter(path__startswith=self.path+'/')
-          if qs.count() != 0:
-            msg = 'This an ancestor of another repository which does not support nesting.'
-            err.setdefault('path', []).append(msg)
-        # is this a child of another repo? (is this the a/b for another a)
-        updirs = []
-        p = self.path
-        while p:
-          p = os.path.dirname(p)
-          updirs.append(p)
-        qs = type(self).objects.filter(path__in=updirs)
-        qs = qs.exclude(vcs='hg')
+      # verify we aren't nesting repo paths (e.g. a and a/b)
+      # is this a parent of another repo? (is this the a for another a/b)
+      if self.vcs != 'hg': # subrepos are ok for hg
+        qs = type(self).objects.filter(path__startswith=self.path+'/')
         if qs.count() != 0:
-          msg = 'This a subdirectory of another repository which does not support nesting.'
+          msg = 'This an ancestor of another repository which does not support nesting.'
           err.setdefault('path', []).append(msg)
-      else:
-        err['path'] = ['Invalid path']
+      # is this a child of another repo? (is this the a/b for another a)
+      updirs = []
+      p = self.path
+      while p:
+        p = os.path.dirname(p)
+        updirs.append(p)
+      qs = type(self).objects.filter(path__in=updirs)
+      qs = qs.exclude(vcs='hg')
+      if qs.count() != 0:
+        msg = 'This a subdirectory of another repository which does not support nesting.'
+        err.setdefault('path', []).append(msg)
     if not exclude or 'vcs' not in exclude:
       if not filter(lambda x: x[0] == self.vcs, VCS_CHOICES):
         msg = 'Not a valid VCS type'

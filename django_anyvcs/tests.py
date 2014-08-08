@@ -91,11 +91,6 @@ class CreateRepoTestCase(BaseTestCase):
       repo = Repo(name=name, path='repo', vcs='git')
       self.assertRaises(ValidationError, repo.full_clean)
 
-  def test_invalid_paths(self):
-    for path in ('/a', '.hidden', 'a//b', '../a', 'a/..', 'a/../b'):
-      repo = Repo(name='repo', path=path, vcs='git')
-      self.assertRaises(ValidationError, repo.full_clean)
-
   def test_invalid_vcs(self):
     repo = Repo(name='repo', path='repo', vcs='invalid')
     self.assertRaises(ValidationError, repo.full_clean)

@@ -27,8 +27,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from django.db import models
-from django.db.models.signals import (pre_save, post_save, pre_delete,
-                                      post_delete)
+from django.db.models.signals import post_save, post_delete
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from . import settings
@@ -347,14 +346,8 @@ class GroupRights(models.Model):
     self.repo.last_modified = self.last_modified
     self.repo.save()
 
-def pre_save_proxy(sender, instance, **kwargs):
-  instance.pre_save(**kwargs)
-
 def post_save_proxy(sender, instance, **kwargs):
   instance.post_save(**kwargs)
-
-def pre_delete_proxy(sender, instance, **kwargs):
-  instance.pre_delete(**kwargs)
 
 def post_delete_proxy(sender, instance, **kwargs):
   instance.post_delete(**kwargs)

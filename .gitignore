@@ -1,4 +1,4 @@
 *.py[coa]
 /django_anyvcs.egg-info
-/testproject/test.db
-/testproject/repo-root
+/db.sqlite3
+/repo-root

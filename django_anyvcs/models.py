@@ -48,6 +48,7 @@ RIGHTS_CHOICES = (
 )
 
 name_rx = re.compile(r'^(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*/)*(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*)$')
+hidden_path_rx = re.compile(r'(?:^|/)\.')
 
 def makedirs(path):
   try:
@@ -208,6 +209,8 @@ class Repo(models.Model):
         self.path = os.path.join('svn', self.name)
       elif not self.path:
         self.path = settings.VCSREPO_PATH_FUNCTION(self)
+      if hidden_path_rx.search(self.path):
+        err['path'] = 'Invalid path'
       if settings.VCSREPO_CHECK_NESTED_PATHS:
         # verify we aren't nesting repo paths (e.g. a and a/b)
         # is this a parent of another repo? (is this the a for another a/b)

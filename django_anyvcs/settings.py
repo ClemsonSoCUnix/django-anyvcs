@@ -38,9 +38,7 @@ def default_path(repo):
     repo.vcs,
     h[0:2],
     h[2:4],
-    h[4:6],
-    h[6:8],
-    h[8:],
+    h[4:],
   ]
   return os.path.join(*p)
 

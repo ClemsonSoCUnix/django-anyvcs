@@ -144,8 +144,8 @@ class SvnRequest(Request):
 
   def get_command(self):
     assert VCSREPO_ROOT is not None, 'VCSREPO_ROOT is not set'
-    byname_dir = os.path.join(VCSREPO_ROOT, '.byname')
-    cmd = [SVNSERVE, '--root', byname_dir, '--tunnel']
+    svn_dir = os.path.join(VCSREPO_ROOT, 'svn')
+    cmd = [SVNSERVE, '--root', svn_dir, '--tunnel']
     if username is not None:
       cmd.extend(['--tunnel-user', username])
     return cmd

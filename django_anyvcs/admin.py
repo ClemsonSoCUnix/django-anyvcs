@@ -29,15 +29,16 @@
 from django.contrib import admin
 from models import Repo, UserRights, GroupRights
 
-def update_local_files(modeladmin, request, queryset):
+def update_svnserve(modeladmin, request, queryset):
   for obj in queryset:
-    obj.update_local_files()
+    obj.update_svnserve()
+update_svnserve.short_description = 'Update svnserve.conf'
 
 class RepoAdmin(admin.ModelAdmin):
   list_display = ['__unicode__', 'path', 'vcs']
   list_filter = ['vcs']
   search_fields = ['name', 'path']
-  actions = [update_local_files]
+  actions = [update_svnserve]
 
   def get_readonly_fields(self, request, obj=None):
     if obj:

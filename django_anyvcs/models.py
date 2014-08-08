@@ -300,7 +300,7 @@ class UserRights(models.Model):
     self.repo.last_modified = self.last_modified
     self.repo.save()
 
-  def pre_delete(self, **kwargs):
+  def post_delete(self, **kwargs):
     self.repo.update_svnserve()
     self.repo.last_modified = self.last_modified
     self.repo.save()
@@ -342,7 +342,7 @@ class GroupRights(models.Model):
     self.repo.last_modified = self.last_modified
     self.repo.save()
 
-  def pre_delete(self, **kwargs):
+  def post_delete(self, **kwargs):
     self.repo.update_svnserve()
     self.repo.last_modified = self.last_modified
     self.repo.save()
@@ -365,8 +365,8 @@ post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=Repo)
 
 # UserRights signals
 post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=UserRights)
-pre_delete.connect(pre_delete_proxy, dispatch_uid=__name__, sender=UserRights)
+post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=UserRights)
 
 # GroupRights signals
 post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=GroupRights)
-pre_delete.connect(pre_delete_proxy, dispatch_uid=__name__, sender=GroupRights)
+post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=GroupRights)

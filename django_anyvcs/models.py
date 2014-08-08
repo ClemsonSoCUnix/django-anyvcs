@@ -103,6 +103,7 @@ class Repo(models.Model):
 
   class Meta:
     db_table = 'anyvcs_repo'
+    ordering = ['name']
     verbose_name = 'Repository'
     verbose_name_plural = 'Repositories'
 

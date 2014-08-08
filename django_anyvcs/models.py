@@ -185,6 +185,12 @@ class Repo(models.Model):
       if e.errno != errno.ENOENT:
         raise
 
+  def reorganize(self):
+    if self.vcs == 'svn':
+      self.path = os.path.join('svn', self.name)
+    else:
+      self.path = settings.VCSREPO_PATH_FUNCTION(self)
+
   def clean_fields(self, exclude=None):
     err = {}
     if not exclude or 'name' not in exclude:

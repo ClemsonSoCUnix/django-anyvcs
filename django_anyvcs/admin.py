@@ -35,9 +35,9 @@ def update_svnserve(modeladmin, request, queryset):
     obj.update_svnserve()
 update_svnserve.short_description = 'Update svnserve.conf'
 
-def reorganize_paths(modeladmin, request, queryset):
+def relocate_path(modeladmin, request, queryset):
   for obj in queryset:
-    obj.reorganize()
+    obj.relocate_path()
     obj.save()
 
 class RepoAdmin(admin.ModelAdmin):
@@ -46,7 +46,7 @@ class RepoAdmin(admin.ModelAdmin):
   search_fields = ['name', 'path']
   actions = [
     update_svnserve,
-    reorganize_paths,
+    relocate_path,
   ]
 
   def get_readonly_fields(self, request, obj=None):

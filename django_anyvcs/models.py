@@ -191,7 +191,7 @@ class Repo(models.Model):
       if e.errno != errno.ENOENT:
         raise
 
-  def reorganize(self):
+  def relocate_path(self):
     if self.vcs == 'svn':
       self.path = os.path.join('svn', self.name)
     else:

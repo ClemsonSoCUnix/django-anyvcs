@@ -31,9 +31,9 @@ import getpass
 import socket
 
 def default_path(repo):
+  import hashlib
   import os
-  import uuid
-  h = uuid.uuid1().hex
+  h = hashlib.sha1(repo.name).hexdigest()
   p = [
     repo.vcs,
     h[0:2],

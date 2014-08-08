@@ -31,8 +31,9 @@ from django.test.client import Client
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
-from django_anyvcs.models import Repo, UserRights, GroupRights
-from django_anyvcs import settings
+from unittest import skipIf, skipUnless
+from .models import Repo
+from . import settings
 import anyvcs.git, anyvcs.hg, anyvcs.svn
 import json
 import os
@@ -58,20 +59,32 @@ class BaseTestCase(TestCase):
   def setUp(self):
     self.original_root = settings.VCSREPO_ROOT
     settings.VCSREPO_ROOT = tempfile.mkdtemp(prefix='anyvcs-test.')
-    self.original_rights_function = settings.VCSREPO_RIGHTS_FUNCTION
     self.original_uri_format = settings.VCSREPO_URI_FORMAT
     settings.VCSREPO_URI_FORMAT = URI_FORMAT
     self.original_uri_context = settings.VCSREPO_URI_CONTEXT
     settings.VCSREPO_URI_CONTEXT = URI_CONTEXT
-    settings.VCSREPO_RIGHTS_FUNCTION = None
 
   def tearDown(self):
     Repo.objects.all().delete()
     shutil.rmtree(settings.VCSREPO_ROOT)
     settings.VCSREPO_ROOT = self.original_root
-    settings.VCSREPO_RIGHTS_FUNCTION = self.original_rights_function
     settings.VCSREPO_URI_FORMAT = self.original_uri_format
     settings.VCSREPO_URI_CONTEXT = self.original_uri_context
+
+  def assertPathExists(self, path):
+    if isinstance(path, (tuple, list)):
+      path = os.path.join(*path)
+    if not os.path.exists(path):
+      raise AssertionError("Path does not exist: ", path)
+
+  def assertPathNotExists(self, path):
+    if isinstance(path, (tuple, list)):
+      path = os.path.join(*path)
+    try:
+      self.assertPathExists(path)
+      raise AssertionError("Path exists: ", path)
+    except AssertionError:
+      pass
 
 class CreateRepoTestCase(BaseTestCase):
   def test_invalid_names(self):
@@ -80,7 +93,7 @@ class CreateRepoTestCase(BaseTestCase):
       self.assertRaises(ValidationError, repo.full_clean)
 
   def test_invalid_paths(self):
-    for path in ('/a', '.hidden', 'a//b', '../a', 'a/..', 'a/../b'):
+    for path in ('.', '..', 'a/..', '../a', '.a', '.a/a', 'a/.a'):
       repo = Repo(name='repo', path=path, vcs='git')
       self.assertRaises(ValidationError, repo.full_clean)
 
@@ -102,6 +115,17 @@ class CreateRepoTestCase(BaseTestCase):
     repo.save()
     self.assertIsInstance(repo.repo, anyvcs.git.GitRepo)
 
+  def test_git_absolute_path(self):
+    d = tempfile.mkdtemp(prefix='anyvcs-test.')
+    path = os.path.join(d, 'repo')
+    repo = Repo(name='a', path=path, vcs='git')
+    repo.full_clean()
+    repo.save()
+    self.assertEqual(repo.path, path)
+    self.assertEqual(repo.abspath, path)
+    self.assertIsInstance(repo.repo, anyvcs.git.GitRepo)
+    shutil.rmtree(d)
+
   def test_hg(self):
     repo = Repo(name='a', path='b', vcs='hg')
     repo.full_clean()
@@ -116,19 +140,91 @@ class CreateRepoTestCase(BaseTestCase):
     repo.save()
     self.assertIsInstance(repo.repo, anyvcs.hg.HgRepo)
 
+  def test_hg_absolute_path(self):
+    d = tempfile.mkdtemp(prefix='anyvcs-test.')
+    path = os.path.join(d, 'repo')
+    repo = Repo(name='a', path=path, vcs='hg')
+    repo.full_clean()
+    repo.save()
+    self.assertEqual(repo.path, path)
+    self.assertEqual(repo.abspath, path)
+    self.assertIsInstance(repo.repo, anyvcs.hg.HgRepo)
+    shutil.rmtree(d)
+
   def test_svn(self):
     repo = Repo(name='a', path='b', vcs='svn')
     repo.full_clean()
     repo.save()
-    self.assertEqual(repo.path, 'b')
-    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'b'))
+    self.assertEqual(repo.path, os.path.join('svn', 'a'))
+    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'svn', 'a'))
     self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
 
   def test_svn_without_path(self):
     repo = Repo(name='a', vcs='svn')
     repo.full_clean()
     repo.save()
+    self.assertEqual(repo.path, os.path.join('svn', 'a'))
+    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'svn', 'a'))
     self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
+
+  def test_svn_absolute_path(self):
+    d = tempfile.mkdtemp(prefix='anyvcs-test.')
+    path = os.path.join(d, 'repo')
+    repo = Repo(name='a', path=path, vcs='svn')
+    repo.full_clean()
+    repo.save()
+    self.assertEqual(repo.path, os.path.join('svn', 'a'))
+    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'svn', 'a'))
+    self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
+    shutil.rmtree(d)
+
+class ChangeRepoTestCase(BaseTestCase):
+  def test_rename_git(self):
+    repo = Repo(name='a', vcs='git')
+    repo.full_clean()
+    repo.save()
+    old_path = repo.path
+    repo.name = 'b'
+    repo.full_clean()
+    repo.save()
+    self.assertEqual(repo.name, 'b')
+    self.assertEqual(repo.path, old_path)
+    self.assertPathExists(repo.abspath)
+
+  def test_move_git(self):
+    repo = Repo(name='a', vcs='git')
+    repo.full_clean()
+    repo.save()
+    old_abspath = repo.abspath
+    repo.path = 'b'
+    repo.full_clean()
+    repo.save()
+    self.assertEqual(repo.name, 'a')
+    self.assertEqual(repo.path, 'b')
+    self.assertPathExists(repo.abspath)
+    self.assertPathNotExists(old_abspath)
+
+  def test_rename_svn(self):
+    repo = Repo(name='a', vcs='svn')
+    repo.full_clean()
+    repo.save()
+    repo.name = 'b'
+    repo.full_clean()
+    repo.save()
+    self.assertEqual(repo.name, 'b')
+    self.assertEqual(repo.path, os.path.join('svn', 'b'))
+    self.assertPathExists(repo.abspath)
+
+  def test_move_svn(self):
+    repo = Repo(name='a', vcs='svn')
+    repo.full_clean()
+    repo.save()
+    repo.path = 'b'
+    repo.full_clean()
+    repo.save()
+    self.assertEqual(repo.name, 'a')
+    self.assertEqual(repo.path, os.path.join('svn', 'a'))
+    self.assertPathExists(repo.abspath)
 
 class LookupTestCase(BaseTestCase):
   @classmethod
@@ -144,6 +240,7 @@ class LookupTestCase(BaseTestCase):
   @classmethod
   def tearDownClass(cls):
     User.objects.all().delete()
+    Group.objects.all().delete()
     super(LookupTestCase, cls).tearDownClass()
 
   def test_public_read_anonymous(self):
@@ -194,7 +291,12 @@ class LookupTestCase(BaseTestCase):
       self.assertEqual(document['rights'], public_rights)
       repo.delete()
 
+  @skipUnless(
+    settings.VCSREPO_USE_USER_RIGHTS,
+    "not using UserRights"
+  )
   def test_user_overrides_public_read(self):
+    from .models import UserRights
     vcs = 'git'
     for public_read, public_rights in ((False, '-'), (True, 'r')):
       for user_rights in ('-', 'r', 'rw'):
@@ -224,7 +326,12 @@ class LookupTestCase(BaseTestCase):
         self.assertEqual(document['rights'], user_rights)
         repo.delete()
 
+  @skipUnless(
+    settings.VCSREPO_USE_GROUP_RIGHTS,
+    "not using GroupRights"
+  )
   def test_group_overrides_public_read(self):
+    from .models import GroupRights
     vcs = 'hg'
     for public_read, public_rights in ((False, '-'), (True, 'r')):
       for group_rights in ('-', 'r', 'rw'):
@@ -254,7 +361,12 @@ class LookupTestCase(BaseTestCase):
         self.assertEqual(document['rights'], group_rights)
         repo.delete()
 
+  @skipUnless(
+    settings.VCSREPO_USE_USER_RIGHTS and settings.VCSREPO_USE_GROUP_RIGHTS,
+    "not using UserRights and GroupRights"
+  )
   def test_user_overrides_group_rights(self):
+    from .models import UserRights, GroupRights
     vcs = 'git'
     for group_rights in ('-', 'r', 'rw'):
       for user_rights in ('-', 'r', 'rw'):
@@ -294,21 +406,169 @@ class LookupTestCase(BaseTestCase):
       path = 'repo',
       vcs = 'git',
     )
-    for rights in ('-', 'r', 'rw'):
-      def f(r, u):
-        self.assertEqual(repo, r)
-        self.assertEqual(self.user1, u)
-        return rights
-      settings.VCSREPO_RIGHTS_FUNCTION = f
-      client = Client()
-      url = reverse('django_anyvcs.views.access', args=(repo.name,))
-      response = client.get(url, {'u': self.user1.username})
-      self.assertEqual(response.status_code, 200)
-      self.assertIn('Content-Type', response)
-      self.assertEqual(response['Content-Type'], 'application/json')
-      document = json.loads(response.content)
-      self.assertIn('rights', document)
-      self.assertEqual(document['rights'], rights)
+    original_rights_function = settings.VCSREPO_RIGHTS_FUNCTION
+    try:
+      for rights in ('-', 'r', 'rw'):
+        def f(r, u):
+          self.assertEqual(repo, r)
+          self.assertEqual(self.user1, u)
+          return rights
+        settings.VCSREPO_RIGHTS_FUNCTION = f
+        client = Client()
+        url = reverse('django_anyvcs.views.access', args=(repo.name,))
+        response = client.get(url, {'u': self.user1.username})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Content-Type', response)
+        self.assertEqual(response['Content-Type'], 'application/json')
+        document = json.loads(response.content)
+        self.assertIn('rights', document)
+        self.assertEqual(document['rights'], rights)
+    finally:
+      settings.VCSREPO_RIGHTS_FUNCTION = original_rights_function
+
+class SvnAuthzTestCase(BaseTestCase):
+  def setUp(self):
+    from ConfigParser import RawConfigParser
+    super(SvnAuthzTestCase, self).setUp()
+    repo = Repo(name='a', vcs='svn')
+    repo.full_clean()
+    repo.save()
+    self.repo = repo
+    self.authz = os.path.join(repo.abspath, 'conf', 'authz')
+    self.config = RawConfigParser(allow_no_value=True)
+    self.user1 = User.objects.create(username='user1')
+    self.user2 = User.objects.create(username='user2')
+    self.group1 = Group.objects.create(name='group1')
+    self.group1.user_set.add(self.user1)
+
+  def tearDown(self):
+    User.objects.all().delete()
+    Group.objects.all().delete()
+    super(SvnAuthzTestCase, self).tearDown()
+
+  @skipUnless(
+    settings.VCSREPO_USE_USER_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User',
+    "not using UserRights with auth.User"
+  )
+  def test_add_user_rights(self):
+    from .models import UserRights
+    rights = UserRights.objects.create(
+      repo = self.repo,
+      user = self.user1,
+      rights = 'r',
+    )
+    self.config.read(self.authz)
+    self.assertTrue(self.config.has_section('/'))
+    self.assertTrue(self.config.has_option('/', self.user1.username))
+    self.assertEqual(self.config.get('/', self.user1.username), 'r')
+
+  @skipUnless(
+    settings.VCSREPO_USE_USER_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User',
+    "not using UserRights with auth.User"
+  )
+  def test_remove_user_rights(self):
+    from .models import UserRights
+    rights = UserRights.objects.create(
+      repo = self.repo,
+      user = self.user1,
+      rights = 'r',
+    )
+    rights.delete()
+    self.config.read(self.authz)
+    self.assertTrue(self.config.has_section('/'))
+    self.assertFalse(self.config.has_option('/', self.user1.username))
+
+  @skipUnless(
+    settings.VCSREPO_USE_GROUP_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User'
+    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    "not using GroupRights with auth.User and auth.Group"
+  )
+  def test_add_group_rights(self):
+    from .models import GroupRights
+    rights = GroupRights.objects.create(
+      repo = self.repo,
+      group = self.group1,
+      rights = 'r',
+    )
+    g = '@' + self.group1.name
+    self.config.read(self.authz)
+    self.assertTrue(self.config.has_section('groups'))
+    self.assertTrue(self.config.has_option('groups', g))
+    self.assertEqual(self.config.get('groups', g), self.user1.username)
+    self.assertTrue(self.config.has_section('/'))
+    self.assertTrue(self.config.has_option('/', g))
+    self.assertEqual(self.config.get('/', g), 'r')
+
+  @skipUnless(
+    settings.VCSREPO_USE_GROUP_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User'
+    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    "not using GroupRights with auth.User and auth.Group"
+  )
+  def test_remove_group_rights(self):
+    from .models import GroupRights
+    rights = GroupRights.objects.create(
+      repo = self.repo,
+      group = self.group1,
+      rights = 'r',
+    )
+    rights.delete()
+    g = '@' + self.group1.name
+    self.config.read(self.authz)
+    if self.config.has_section('groups'):
+      self.assertFalse(self.config.has_option('groups', g))
+    self.assertTrue(self.config.has_section('/'))
+    self.assertFalse(self.config.has_option('/', g))
+
+  @skipUnless(
+    settings.VCSREPO_USE_GROUP_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User'
+    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    "not using GroupRights with auth.User and auth.Group"
+  )
+  def test_add_user_to_group(self):
+    from .models import GroupRights
+    rights = GroupRights.objects.create(
+      repo = self.repo,
+      group = self.group1,
+      rights = 'r',
+    )
+    self.group1.user_set.add(self.user2)
+    g = '@' + self.group1.name
+    self.config.read(self.authz)
+    self.assertTrue(self.config.has_section('groups'))
+    self.assertTrue(self.config.has_option('groups', g))
+    members = set(map(str.strip, self.config.get('groups', g).split(',')))
+    self.assertEqual(members, set([self.user1.username, self.user2.username]))
+    self.assertTrue(self.config.has_section('/'))
+    self.assertTrue(self.config.has_option('/', g))
+    self.assertEqual(self.config.get('/', g), 'r')
+
+  @skipUnless(
+    settings.VCSREPO_USE_GROUP_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User'
+    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    "not using GroupRights with auth.User and auth.Group"
+  )
+  def test_remove_user_from_group(self):
+    from .models import GroupRights
+    rights = GroupRights.objects.create(
+      repo = self.repo,
+      group = self.group1,
+      rights = 'r',
+    )
+    self.group1.user_set.remove(self.user1)
+    g = '@' + self.group1.name
+    self.config.read(self.authz)
+    self.assertTrue(self.config.has_section('groups'))
+    self.assertTrue(self.config.has_option('groups', g))
+    self.assertEqual(self.config.get('groups', g), '')
+    self.assertTrue(self.config.has_section('/'))
+    self.assertTrue(self.config.has_option('/', g))
+    self.assertEqual(self.config.get('/', g), 'r')
 
 class RepoUriTestCase(BaseTestCase):
   def test_svn(self):
@@ -346,74 +606,3 @@ class RepoUriTestCase(BaseTestCase):
     correct = 'ssh://anonymous@hostname/hg'
     self.assertEqual(hg.anonymous_ssh_uri, correct)
     hg.delete()
-
-class SvnBynameTestCase(BaseTestCase):
-  def setUp(self):
-    super(BaseTestCase, self).setUp()
-    self.repo1 = Repo(name='a/b/c/svn1', vcs='svn')
-    self.repo2 = Repo(name='a/svn2', vcs='svn')
-    self.repo3 = Repo(name='svn3', vcs='svn')
-    self.repo1.full_clean()
-    self.repo1.save()
-    self.repo2.full_clean()
-    self.repo2.save()
-    self.repo3.full_clean()
-    self.repo3.save()
-    self.byname_dir = os.path.join(settings.VCSREPO_ROOT, '.byname')
-
-  def tearDown(self):
-    Repo.objects.all().delete()
-    super(BaseTestCase, self).tearDown()
-
-  def assertByname(self, repo):
-    byname_path = os.path.join(self.byname_dir, repo.name)
-    byname_parent, filename = os.path.split(byname_path)
-    self.assertPathExists(byname_path)
-    abspath = os.path.normpath(os.path.join(byname_parent, os.readlink(byname_path)))
-    self.assertEqual(repo.abspath, abspath)
-
-  def assertPathExists(self, path):
-    if isinstance(path, (tuple, list)):
-      path = os.path.join(*path)
-    if not os.path.exists(path):
-      raise AssertionError("Path does not exist: ", path)
-
-  def assertPathNotExists(self, path):
-    if isinstance(path, (tuple, list)):
-      path = os.path.join(*path)
-    try:
-      self.assertPathExists(path)
-      raise AssertionError("Path exists: ", path)
-    except AssertionError:
-      pass
-
-  def test_created(self):
-    self.assertByname(self.repo1)
-    self.assertByname(self.repo2)
-    self.assertByname(self.repo3)
-
-  def test_move(self):
-    old_link = os.path.join(self.byname_dir, self.repo1.name)
-    self.repo1.name = 'svn1'
-    self.repo1.save()
-    self.assertByname(self.repo1)
-    self.assertPathNotExists([self.byname_dir, 'a', 'b', 'c'])
-    self.assertPathNotExists([self.byname_dir, 'a', 'b'])
-    self.assertPathExists([self.byname_dir, 'a'])
-    self.assertByname(self.repo2)
-    self.assertByname(self.repo3)
-
-    ## go back to initial state
-    old_link = os.path.join(self.byname_dir, self.repo1.name)
-    self.repo1.name = 'a/b/c/svn1'
-    self.repo1.save()
-    self.assertPathNotExists(old_link)
-    self.assertByname(self.repo1)
-    self.assertByname(self.repo2)
-    self.assertByname(self.repo3)
-
-  def test_idempotent_save(self):
-    ## saving twice shouldn't remove the symlink
-    self.assertByname(self.repo1)
-    self.repo1.save()
-    self.assertByname(self.repo1)

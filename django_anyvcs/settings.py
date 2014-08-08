@@ -27,13 +27,24 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from django.conf import settings
+from . import defaults
 import getpass
 import socket
 
 VCSREPO_ROOT = settings.VCSREPO_ROOT
-VCSREPO_RIGHTS_FUNCTION = getattr(settings, 'VCSREPO_RIGHTS_FUNCTION', None)
-VCSREPO_USER_ACL_FUNCTION = getattr(settings, 'VCSREPO_USER_ACL_FUNCTION', None)
-VCSREPO_GROUP_ACL_FUNCTION = getattr(settings, 'VCSREPO_GROUP_ACL_FUNCTION', None)
+VCSREPO_PATH_FUNCTION = getattr(settings, 'VCSREPO_RELPATH_FUNCTION', defaults.path_function)
+VCSREPO_CHECK_NESTED_PATHS = getattr(settings, 'VCSREPO_CHECK_NESTED_PATHS', True)
+VCSREPO_ALLOW_NESTED_PATHS = getattr(settings, 'VCSREPO_ALLOW_NESTED_PATHS', False)
+
+VCSREPO_USE_USER_RIGHTS = getattr(settings, 'VCSREPO_USE_USER_RIGHTS', True)
+VCSREPO_USE_GROUP_RIGHTS = getattr(settings, 'VCSREPO_USE_GROUP_RIGHTS', True)
+
+VCSREPO_USER_MODEL = getattr(settings, 'VCSREPO_USER_MODEL', getattr(settings, 'AUTH_USER_MODEL', 'auth.User'))
+VCSREPO_GROUP_MODEL = getattr(settings, 'VCSREPO_GROUP_MODEL', 'auth.Group')
+
+VCSREPO_RIGHTS_FUNCTION = getattr(settings, 'VCSREPO_RIGHTS_FUNCTION', defaults.rights_function)
+VCSREPO_USER_ACL_FUNCTION = getattr(settings, 'VCSREPO_USER_ACL_FUNCTION', defaults.user_acl_function if VCSREPO_USE_USER_RIGHTS else None)
+VCSREPO_GROUP_ACL_FUNCTION = getattr(settings, 'VCSREPO_GROUP_ACL_FUNCTION', defaults.group_acl_function if VCSREPO_USE_GROUP_RIGHTS else None)
 
 if hasattr(settings, 'VCS_URI_FORMAT'):
   import warnings

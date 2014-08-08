@@ -26,55 +26,46 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from django.contrib import admin
-from . import settings
-from .models import Repo
-
-def update_svnserve(modeladmin, request, queryset):
-  for obj in queryset:
-    obj.update_svnserve()
-update_svnserve.short_description = 'Update svnserve.conf'
-
-def relocate_path(modeladmin, request, queryset):
-  for obj in queryset:
-    obj.relocate_path()
-    obj.save()
-
-class RepoAdmin(admin.ModelAdmin):
-  list_display = ['__unicode__', 'path', 'vcs']
-  list_filter = ['vcs']
-  search_fields = ['name', 'path']
-  actions = [
-    update_svnserve,
-    relocate_path,
+def path_function(repo):
+  import hashlib
+  import os
+  h = hashlib.sha1(repo.name).hexdigest()
+  p = [
+    repo.vcs,
+    h[0:2],
+    h[2:4],
+    h[4:],
   ]
+  return os.path.join(*p)
 
-  def get_readonly_fields(self, request, obj=None):
-    if obj:
-      return ['abspath', 'vcs']
-    else:
-      return []
+def rights_function(repo, user):
+  from . import settings
+  if user is not None:
+    if settings.VCSREPO_USE_USER_RIGHTS:
+      from .models import UserRights
+      try:
+        userrights = UserRights.objects.get(repo=repo, user=user)
+        return userrights.rights
+      except UserRights.DoesNotExist:
+        pass
+    if settings.VCSREPO_USE_GROUP_RIGHTS:
+      from .models import GroupRights
+      rights = None
+      for group in user.groups.all():
+        try:
+          grouprights = GroupRights.objects.get(repo=repo, group=group)
+          if rights is None or len(grouprights.rights) < rights:
+            rights = grouprights.rights
+        except GroupRights.DoesNotExist:
+          pass
+      if rights is not None:
+        return rights
+  if repo.public_read:
+    return 'r'
+  return '-'
 
-  def abspath(self, instance):
-    return instance.abspath
-  abspath.short_description = 'Full Path'
+def user_acl_function(repo):
+  return dict((x.user, x.rights) for x in repo.userrights_set.all())
 
-admin.site.register(Repo, RepoAdmin)
-
-if settings.VCSREPO_USE_USER_RIGHTS:
-  from .models import UserRights
-
-  class UserRightsAdmin(admin.ModelAdmin):
-    list_display = ['__unicode__', 'repo', 'user', 'rights']
-    search_fields = ['repo__name', 'user__username']
-
-  admin.site.register(UserRights, UserRightsAdmin)
-
-if settings.VCSREPO_USE_GROUP_RIGHTS:
-  from .models import GroupRights
-
-  class GroupRightsAdmin(admin.ModelAdmin):
-    list_display = ['__unicode__', 'repo', 'group', 'rights']
-    search_fields = ['repo__name', 'group__name']
-
-  admin.site.register(GroupRights, GroupRightsAdmin)
+def group_acl_function(repo):
+  return dict((x.group, x.rights) for x in repo.grouprights_set.all())

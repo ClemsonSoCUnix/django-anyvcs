@@ -52,6 +52,35 @@ django-anyvcs looks at the following variables in your project's settings.py:
   String, required.  The root directory in which all VCS repositories are
   stored.
 
+``VCSREPO_PATH_FUNCTION``
+  Function, optional.  Override the default path given to a repo.  The function
+  is given a repo and returns a string (the path).
+
+``VCSREPO_CHECK_NESTED_PATHS``
+  Boolean, defaults to True.  If true then repo paths are checked against all
+  other repo paths to make sure they aren't nested inside each other.  This is
+  a fairly expensive operation, so if you know this won't ever happen then set
+  this to False.
+
+``VCSREPO_ALLOW_NESTED_PATHS``
+  Boolean, defaults to False.  If true then VCS systems that support it will
+  allow path nesting.  Currently, only Mercurial supports this.
+
+``VCSREPO_USE_USER_RIGHTS``
+  Boolean, defaults to True.  If true then the UserRights model will be enabled.
+
+``VCSREPO_USE_GROUP_RIGHTS``
+  Boolean, defaults to True.  If true then the GroupRights model will be
+  enabled.
+
+``VCSREPO_USER_MODEL``
+  String, defaults to ``AUTH_USER_MODEL`` or ``'auth.User'``.  Defines the user
+  model that UserRights is tied to.
+
+``VCSREPO_GROUP_MODEL``
+  String, defaults to ``'auth.Group'``.  Defines the group model that
+  GroupRights is tied to.
+
 ``VCSREPO_RIGHTS_FUNCTION``
   Function, optional.  If set, this function is called with two parameters: the
   repository being accessed, and the user who is accessing the repository (may

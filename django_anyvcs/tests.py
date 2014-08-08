@@ -31,6 +31,7 @@ from django.test.client import Client
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from unittest import skipIf, skipUnless
 from .models import Repo
 from . import settings
 import anyvcs.git, anyvcs.hg, anyvcs.svn
@@ -239,6 +240,7 @@ class LookupTestCase(BaseTestCase):
   @classmethod
   def tearDownClass(cls):
     User.objects.all().delete()
+    Group.objects.all().delete()
     super(LookupTestCase, cls).tearDownClass()
 
   def test_public_read_anonymous(self):
@@ -414,6 +416,150 @@ class LookupTestCase(BaseTestCase):
         self.assertEqual(document['rights'], rights)
     finally:
       settings.VCSREPO_RIGHTS_FUNCTION = original_rights_function
+
+class SvnAuthzTestCase(BaseTestCase):
+  def setUp(self):
+    from ConfigParser import RawConfigParser
+    super(SvnAuthzTestCase, self).setUp()
+    repo = Repo(name='a', vcs='svn')
+    repo.full_clean()
+    repo.save()
+    self.repo = repo
+    self.authz = os.path.join(repo.abspath, 'conf', 'authz')
+    self.config = RawConfigParser(allow_no_value=True)
+    self.user1 = User.objects.create(username='user1')
+    self.user2 = User.objects.create(username='user2')
+    self.group1 = Group.objects.create(name='group1')
+    self.group1.user_set.add(self.user1)
+
+  def tearDown(self):
+    User.objects.all().delete()
+    Group.objects.all().delete()
+    super(SvnAuthzTestCase, self).tearDown()
+
+  @skipUnless(
+    settings.VCSREPO_USE_USER_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User',
+    "not using UserRights with auth.User"
+  )
+  def test_add_user_rights(self):
+    from .models import UserRights
+    rights = UserRights.objects.create(
+      repo = self.repo,
+      user = self.user1,
+      rights = 'r',
+    )
+    self.config.read(self.authz)
+    self.assertTrue(self.config.has_section('/'))
+    self.assertTrue(self.config.has_option('/', self.user1.username))
+    self.assertEqual(self.config.get('/', self.user1.username), 'r')
+
+  @skipUnless(
+    settings.VCSREPO_USE_USER_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User',
+    "not using UserRights with auth.User"
+  )
+  def test_remove_user_rights(self):
+    from .models import UserRights
+    rights = UserRights.objects.create(
+      repo = self.repo,
+      user = self.user1,
+      rights = 'r',
+    )
+    rights.delete()
+    self.config.read(self.authz)
+    self.assertTrue(self.config.has_section('/'))
+    self.assertFalse(self.config.has_option('/', self.user1.username))
+
+  @skipUnless(
+    settings.VCSREPO_USE_GROUP_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User'
+    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    "not using GroupRights with auth.User and auth.Group"
+  )
+  def test_add_group_rights(self):
+    from .models import GroupRights
+    rights = GroupRights.objects.create(
+      repo = self.repo,
+      group = self.group1,
+      rights = 'r',
+    )
+    g = '@' + self.group1.name
+    self.config.read(self.authz)
+    self.assertTrue(self.config.has_section('groups'))
+    self.assertTrue(self.config.has_option('groups', g))
+    self.assertEqual(self.config.get('groups', g), self.user1.username)
+    self.assertTrue(self.config.has_section('/'))
+    self.assertTrue(self.config.has_option('/', g))
+    self.assertEqual(self.config.get('/', g), 'r')
+
+  @skipUnless(
+    settings.VCSREPO_USE_GROUP_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User'
+    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    "not using GroupRights with auth.User and auth.Group"
+  )
+  def test_remove_group_rights(self):
+    from .models import GroupRights
+    rights = GroupRights.objects.create(
+      repo = self.repo,
+      group = self.group1,
+      rights = 'r',
+    )
+    rights.delete()
+    g = '@' + self.group1.name
+    self.config.read(self.authz)
+    if self.config.has_section('groups'):
+      self.assertFalse(self.config.has_option('groups', g))
+    self.assertTrue(self.config.has_section('/'))
+    self.assertFalse(self.config.has_option('/', g))
+
+  @skipUnless(
+    settings.VCSREPO_USE_GROUP_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User'
+    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    "not using GroupRights with auth.User and auth.Group"
+  )
+  def test_add_user_to_group(self):
+    from .models import GroupRights
+    rights = GroupRights.objects.create(
+      repo = self.repo,
+      group = self.group1,
+      rights = 'r',
+    )
+    self.group1.user_set.add(self.user2)
+    g = '@' + self.group1.name
+    self.config.read(self.authz)
+    self.assertTrue(self.config.has_section('groups'))
+    self.assertTrue(self.config.has_option('groups', g))
+    members = set(map(str.strip, self.config.get('groups', g).split(',')))
+    self.assertEqual(members, set([self.user1.username, self.user2.username]))
+    self.assertTrue(self.config.has_section('/'))
+    self.assertTrue(self.config.has_option('/', g))
+    self.assertEqual(self.config.get('/', g), 'r')
+
+  @skipUnless(
+    settings.VCSREPO_USE_GROUP_RIGHTS
+    and settings.VCSREPO_USER_MODEL == 'auth.User'
+    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    "not using GroupRights with auth.User and auth.Group"
+  )
+  def test_remove_user_from_group(self):
+    from .models import GroupRights
+    rights = GroupRights.objects.create(
+      repo = self.repo,
+      group = self.group1,
+      rights = 'r',
+    )
+    self.group1.user_set.remove(self.user1)
+    g = '@' + self.group1.name
+    self.config.read(self.authz)
+    self.assertTrue(self.config.has_section('groups'))
+    self.assertTrue(self.config.has_option('groups', g))
+    self.assertEqual(self.config.get('groups', g), '')
+    self.assertTrue(self.config.has_section('/'))
+    self.assertTrue(self.config.has_option('/', g))
+    self.assertEqual(self.config.get('/', g), 'r')
 
 class RepoUriTestCase(BaseTestCase):
   def test_svn(self):

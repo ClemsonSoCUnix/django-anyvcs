@@ -33,6 +33,8 @@ import socket
 
 VCSREPO_ROOT = settings.VCSREPO_ROOT
 VCSREPO_PATH_FUNCTION = getattr(settings, 'VCSREPO_RELPATH_FUNCTION', defaults.path_function)
+VCSREPO_CHECK_NESTED_PATHS = getattr(settings, 'VCSREPO_CHECK_NESTED_PATHS', True)
+VCSREPO_ALLOW_NESTED_PATHS = getattr(settings, 'VCSREPO_ALLOW_NESTED_PATHS', False)
 
 VCSREPO_USE_USER_RIGHTS = getattr(settings, 'VCSREPO_USE_USER_RIGHTS', True)
 VCSREPO_USE_GROUP_RIGHTS = getattr(settings, 'VCSREPO_USE_GROUP_RIGHTS', True)

@@ -207,24 +207,26 @@ class Repo(models.Model):
         self.path = os.path.join('svn', self.name)
       elif not self.path:
         self.path = settings.VCSREPO_PATH_FUNCTION(self)
-      # verify we aren't nesting repo paths (e.g. a and a/b)
-      # is this a parent of another repo? (is this the a for another a/b)
-      if self.vcs != 'hg': # subrepos are ok for hg
-        qs = type(self).objects.filter(path__startswith=self.path+'/')
+      if settings.VCSREPO_CHECK_NESTED_PATHS:
+        # verify we aren't nesting repo paths (e.g. a and a/b)
+        # is this a parent of another repo? (is this the a for another a/b)
+        if not (settings.VCSREPO_ALLOW_NESTED_PATHS or self.vcs == 'hg'):
+          qs = type(self).objects.filter(path__startswith=self.path+'/')
+          if qs.count() != 0:
+            msg = 'This an ancestor of another repository which does not support nesting.'
+            err.setdefault('path', []).append(msg)
+        # is this a child of another repo? (is this the a/b for another a)
+        updirs = []
+        p = self.path
+        while p:
+          p = os.path.dirname(p)
+          updirs.append(p)
+        qs = type(self).objects.filter(path__in=updirs)
+        if settings.VCSREPO_ALLOW_NESTED_PATHS:
+          qs = qs.exclude(vcs='hg')
         if qs.count() != 0:
-          msg = 'This an ancestor of another repository which does not support nesting.'
+          msg = 'This a subdirectory of another repository which does not support nesting.'
           err.setdefault('path', []).append(msg)
-      # is this a child of another repo? (is this the a/b for another a)
-      updirs = []
-      p = self.path
-      while p:
-        p = os.path.dirname(p)
-        updirs.append(p)
-      qs = type(self).objects.filter(path__in=updirs)
-      qs = qs.exclude(vcs='hg')
-      if qs.count() != 0:
-        msg = 'This a subdirectory of another repository which does not support nesting.'
-        err.setdefault('path', []).append(msg)
     if not exclude or 'vcs' not in exclude:
       if not filter(lambda x: x[0] == self.vcs, VCS_CHOICES):
         msg = 'Not a valid VCS type'

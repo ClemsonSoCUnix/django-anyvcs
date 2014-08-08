@@ -27,7 +27,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from django.db import models
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.core.exceptions import ValidationError
 from . import settings
 import anyvcs
@@ -379,3 +379,17 @@ if settings.VCSREPO_USE_GROUP_RIGHTS:
   # GroupRights signals
   post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=GroupRights)
   post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=GroupRights)
+
+  if (
+    settings.VCSREPO_USER_MODEL == 'auth.User'
+    and settings.VCSREPO_GROUP_MODEL == 'auth.Group'
+  ):
+    from django.contrib.auth.models import User
+
+    def group_member_changed(instance, action, **kwargs):
+      if action.startswith('post_'):
+        qs = GroupRights.objects.filter(group=instance, repo__vcs='svn')
+        for gr in qs.select_related('repo'):
+          gr.repo.update_svnserve()
+
+    m2m_changed.connect(group_member_changed, dispatch_uid=__name__, sender=User.groups.through)

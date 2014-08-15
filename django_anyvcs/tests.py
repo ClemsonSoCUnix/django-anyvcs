@@ -705,7 +705,8 @@ class RequestTestCase(BaseTestCase):
     cmd = request.get_command()
     expected = ['svnserve',
                 '--root',  os.path.join(settings.VCSREPO_ROOT, 'svn'),
-                '--tunnel']
+                '--tunnel',
+                '--tunnel-user', 'bob']
     self.assertEqual(expected, cmd)
 
   def test_bad_command1(self):

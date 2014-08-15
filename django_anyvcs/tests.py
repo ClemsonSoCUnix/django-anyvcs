@@ -34,6 +34,7 @@ from django.core.urlresolvers import reverse
 from unittest import skipIf, skipUnless
 from .models import Repo
 from . import settings
+from django_anyvcs import dispatch
 import anyvcs.git, anyvcs.hg, anyvcs.svn
 import json
 import os
@@ -606,3 +607,106 @@ class RepoUriTestCase(BaseTestCase):
     correct = 'ssh://anonymous@hostname/hg'
     self.assertEqual(hg.anonymous_ssh_uri, correct)
     hg.delete()
+
+class RequestTestCase(BaseTestCase):
+
+  def setUp(self):
+    self.original_dispatch_VCSREPO_ROOT = dispatch.VCSREPO_ROOT
+    dispatch.VCSREPO_ROOT = settings.VCSREPO_ROOT
+
+  def tearDown(self):
+    dispatch.VCSREPO_ROOT = self.original_dispatch_VCSREPO_ROOT
+
+  def test_git_cmd1(self):
+    request = dispatch.get_request(['git-upload-pack', 'bob/code'])
+    request.data = {'rights': 'r', 'path': 'path/to/code'}
+    cmd = request.get_command()
+    expected = ['git', 'shell', '-c',
+                "git-upload-pack 'path/to/code'"]
+    self.assertEqual(expected, cmd)
+
+  def test_git_cmd2(self):
+    request = dispatch.get_request(['git-upload-pack', 'bob/code'])
+    request.data = {'rights': '', 'path': 'path/to/code'}
+    self.assertRaises(Exception, request.get_command)
+
+  def test_git_cmd3(self):
+    request = dispatch.get_request(['git-receive-pack', 'bob/code'])
+    request.data = {'rights': 'r', 'path': 'path/to/code'}
+    self.assertRaises(Exception, request.get_command)
+
+  def test_git_cmd4(self):
+    request = dispatch.get_request(['git-upload-pack', '--someflag', 'bob/code'])
+    request.data = {'rights': 'r', 'path': 'path/to/code'}
+    cmd = request.get_command()
+    expected = ['git', 'shell', '-c',
+                "git-upload-pack 'path/to/code'"]
+    self.assertEqual(expected, cmd)
+
+  def test_git_repo_name1(self):
+    request = dispatch.get_request(['git-upload-pack', 'bob/code'])
+    self.assertEqual('bob/code', request.repo_name)
+
+  def test_git_repo_name1(self):
+    request = dispatch.get_request(['git-upload-pack', 'bob/code.git'])
+    self.assertEqual('bob/code', request.repo_name)
+
+  def test_git_noname(self):
+    self.assertRaises(Exception, dispatch.get_request, ['git-receive-pack'])
+
+  def test_hg_cmd1(self):
+    '''Repository specified with -R
+    '''
+    request = dispatch.get_request(['hg', '-R', 'bob/code'])
+    request.data = {'rights': 'rw', 'path': 'path/to/code'}
+    cmd = request.get_command()
+    expected = ['hg', '-R', 'path/to/code', 'serve', '--stdio']
+    self.assertEqual(expected, cmd)
+
+  def test_hg_cmd2(self):
+    '''Repository specified with --repository
+    '''
+    request = dispatch.get_request(['hg', '--repository', 'bob/code'])
+    request.data = {'rights': 'rw', 'path': 'path/to/code'}
+    cmd = request.get_command()
+    expected = ['hg', '-R', 'path/to/code', 'serve', '--stdio']
+    self.assertEqual(expected, cmd)
+
+  def test_hg_cmd3(self):
+    '''Read-only access.
+    '''
+    request = dispatch.get_request(['hg', '--repository', 'bob/code'])
+    request.data = {'rights': 'r', 'path': 'path/to/code'}
+    cmd = request.get_command()
+    expected = ['hg', '-R', 'path/to/code', 'serve', '--stdio',
+        '--config',
+        'hooks.prechangegroup.readonly=echo "Error: Permission denied (read-only)" >&2',
+        '--config',
+        'hooks.prepushkey.readonly=echo "Error: Permission denied (read-only)" >&2',
+    ]
+    self.assertEqual(expected, cmd)
+
+  def test_svn_cmd1(self):
+    '''Without username.
+    '''
+    request = dispatch.get_request(['svnserve', '--root', 'bob/code'])
+    request.data = {'rights': 'r', 'path': 'path/to/code'}
+    cmd = request.get_command()
+    expected = ['svnserve',
+                '--root',  os.path.join(settings.VCSREPO_ROOT, 'svn'),
+                '--tunnel']
+    self.assertEqual(expected, cmd)
+
+  def test_svn_cmd2(self):
+    '''With username.
+    '''
+    request = dispatch.get_request(['svnserve', '--root', 'bob/code'], 'bob')
+    request.data = {'rights': 'r', 'path': 'path/to/code'}
+    cmd = request.get_command()
+    expected = ['svnserve',
+                '--root',  os.path.join(settings.VCSREPO_ROOT, 'svn'),
+                '--tunnel']
+    self.assertEqual(expected, cmd)
+
+  def test_bad_command1(self):
+    self.assertRaises(Exception, dispatch.get_request, ['rm', '-rf', '/'])

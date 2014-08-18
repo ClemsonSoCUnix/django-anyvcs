@@ -37,8 +37,9 @@ SVNSERVE = os.getenv('SVNSERVE', 'svnserve')
 class Request(object):
   postprocess = None
 
-  def __init__(self, argv):
+  def __init__(self, argv, username):
     self.argv = argv
+    self.username = username
     self.repo_name = None
     self.data = {}
 
@@ -84,8 +85,8 @@ class Request(object):
 class GitRequest(Request):
   vcs = 'git'
 
-  def __init__(self, argv):
-    super(GitRequest, self).__init__(argv)
+  def __init__(self, argv, username):
+    super(GitRequest, self).__init__(argv, username)
     for arg in argv[1:]:
       if not arg.startswith('-'):
         repo_name = arg
@@ -111,8 +112,8 @@ class GitRequest(Request):
 class HgRequest(Request):
   vcs = 'hg'
 
-  def __init__(self, argv):
-    super(HgRequest, self).__init__(argv)
+  def __init__(self, argv, username):
+    super(HgRequest, self).__init__(argv, username)
     for i in range(1, len(argv)-1):
       if argv[i] in ('-R', '--repository'):
         repo_name = argv[i+1]
@@ -146,8 +147,8 @@ class SvnRequest(Request):
     assert VCSREPO_ROOT is not None, 'VCSREPO_ROOT is not set'
     svn_dir = os.path.join(VCSREPO_ROOT, 'svn')
     cmd = [SVNSERVE, '--root', svn_dir, '--tunnel']
-    if username is not None:
-      cmd.extend(['--tunnel-user', username])
+    if self.username is not None:
+      cmd.extend(['--tunnel-user', self.username])
     return cmd
 
 
@@ -161,20 +162,20 @@ def parse_command(cmd):
     raise Exception('Command not specified')
   return argv
 
-def get_request(argv):
+def get_request(argv, username=None):
   if argv[0] in ('git-receive-pack', 'git-upload-pack', 'git-upload-archive'):
-    return GitRequest(argv)
+    return GitRequest(argv, username)
   if argv[0] == 'hg':
-    return HgRequest(argv)
+    return HgRequest(argv, username)
   if argv[0] == 'svnserve':
-    return SvnRequest(argv)
+    return SvnRequest(argv, username)
   raise Exception('Command not allowed', cmd)
 
 def ssh_dispatch(access_url, username):
   cmd = os.getenv('SSH_ORIGINAL_COMMAND', '')
   try:
     argv = parse_command(cmd)
-    request = get_request(argv)
+    request = get_request(argv, username)
     if request.repo_name:
       url = '%s/%s' % (access_url, request.repo_name)
       request.load_data(url, {'u': username, 'vcs': request.vcs})

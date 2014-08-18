@@ -2,6 +2,12 @@
 Release Notes for django-anyvcs
 ===============================
 
+2.3.1 (2014-08-18)
+------------------
+
+* Bug fix: fix dispatch for subversion
+* Bug fix: fix dispatch with anonymous users
+
 2.3.0 (2014-08-08)
 ------------------
 

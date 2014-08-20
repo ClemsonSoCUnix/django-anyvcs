@@ -59,15 +59,12 @@ def makedirs(path):
       raise
 
 def removedirs(path, stop=None):
-  import errno
   while path != stop:
     try:
       os.rmdir(path)
       path = os.path.dirname(path)
     except OSError, e:
-      if e.errno == errno.ENOTEMPTY:
-        break
-      raise
+      break
 
 def post_save_proxy(sender, instance, **kwargs):
   instance.post_save(**kwargs)

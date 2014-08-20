@@ -227,6 +227,15 @@ class ChangeRepoTestCase(BaseTestCase):
     self.assertEqual(repo.path, os.path.join('svn', 'a'))
     self.assertPathExists(repo.abspath)
 
+class CannotDeleteSymlinkTestCase(BaseTestCase):
+  def test(self):
+    os.mkdir(os.path.join(settings.VCSREPO_ROOT, 'svn.target'))
+    os.symlink('svn.target', os.path.join(settings.VCSREPO_ROOT, 'svn'))
+    repo = Repo(name='a', vcs='svn')
+    repo.full_clean()
+    repo.save()
+    repo.delete()
+
 class LookupTestCase(BaseTestCase):
   @classmethod
   def setUpClass(cls):

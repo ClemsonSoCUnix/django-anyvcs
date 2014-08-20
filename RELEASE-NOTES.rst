@@ -2,6 +2,11 @@
 Release Notes for django-anyvcs
 ===============================
 
+2.3.2 (2014-08-19)
+------------------
+
+* Bug fix: make removedirs() ignore OSError exceptions
+
 2.3.1 (2014-08-18)
 ------------------
 

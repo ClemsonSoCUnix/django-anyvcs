@@ -138,7 +138,7 @@ class HgRequest(Request):
     return cmd
 
   def postprocess(self, text):
-    return text.replace(self.path, self.repo_name)
+    return text.replace(self.data['path'], self.repo_name)
 
 class SvnRequest(Request):
   vcs = 'svn'

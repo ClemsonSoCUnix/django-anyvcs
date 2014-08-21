@@ -720,3 +720,10 @@ class RequestTestCase(BaseTestCase):
 
   def test_bad_command1(self):
     self.assertRaises(Exception, dispatch.get_request, ['rm', '-rf', '/'])
+
+  def test_hg_postprocess(self):
+    request = dispatch.get_request(['hg', '--repository', 'bob/code'])
+    request.data = {'rights': 'r', 'path': 'path/to/code'}
+    result = request.postprocess('hg: cloning from path/to/code')
+    expected = 'hg: cloning from bob/code'
+    self.assertEqual(expected, result)

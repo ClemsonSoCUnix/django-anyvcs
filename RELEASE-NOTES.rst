@@ -2,6 +2,11 @@
 Release Notes for django-anyvcs
 ===============================
 
+2.3.3 (2014-08-21)
+------------------
+
+* Bug fix: fix AttributeError in HgRequest.postprocess()
+
 2.3.2 (2014-08-19)
 ------------------
 

@@ -169,7 +169,7 @@ def get_request(argv, username=None):
     return HgRequest(argv, username)
   if argv[0] == 'svnserve':
     return SvnRequest(argv, username)
-  raise Exception('Command not allowed', cmd)
+  raise Exception('Command not allowed', argv[0])
 
 def ssh_dispatch(access_url, username):
   cmd = os.getenv('SSH_ORIGINAL_COMMAND', '')

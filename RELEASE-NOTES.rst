@@ -2,6 +2,11 @@
 Release Notes for django-anyvcs
 ===============================
 
+2.3.4 (2014-09-22)
+------------------
+
+* Bug fix: correct implementation of read-only Mercurial repositories
+
 2.3.3 (2014-08-21)
 ------------------
 

@@ -131,9 +131,9 @@ class HgRequest(Request):
     if 'w' not in rights:
       cmd += [
         '--config',
-        'hooks.prechangegroup.readonly=echo "Error: Permission denied (read-only)" >&2',
+        'hooks.prechangegroup.readonly=echo "Error: Permission denied (read-only)" >&2; false',
         '--config',
-        'hooks.prepushkey.readonly=echo "Error: Permission denied (read-only)" >&2',
+        'hooks.prepushkey.readonly=echo "Error: Permission denied (read-only)" >&2; false',
       ]
     return cmd
 
@@ -169,7 +169,7 @@ def get_request(argv, username=None):
     return HgRequest(argv, username)
   if argv[0] == 'svnserve':
     return SvnRequest(argv, username)
-  raise Exception('Command not allowed', cmd)
+  raise Exception('Command not allowed', argv[0])
 
 def ssh_dispatch(access_url, username):
   cmd = os.getenv('SSH_ORIGINAL_COMMAND', '')

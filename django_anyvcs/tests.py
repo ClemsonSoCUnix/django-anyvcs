@@ -689,9 +689,9 @@ class RequestTestCase(BaseTestCase):
     cmd = request.get_command()
     expected = ['hg', '-R', 'path/to/code', 'serve', '--stdio',
         '--config',
-        'hooks.prechangegroup.readonly=echo "Error: Permission denied (read-only)" >&2',
+        'hooks.prechangegroup.readonly=echo "Error: Permission denied (read-only)" >&2; false',
         '--config',
-        'hooks.prepushkey.readonly=echo "Error: Permission denied (read-only)" >&2',
+        'hooks.prepushkey.readonly=echo "Error: Permission denied (read-only)" >&2; false',
     ]
     self.assertEqual(expected, cmd)
 

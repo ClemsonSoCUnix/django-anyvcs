@@ -131,9 +131,9 @@ class HgRequest(Request):
     if 'w' not in rights:
       cmd += [
         '--config',
-        'hooks.prechangegroup.readonly=echo "Error: Permission denied (read-only)" >&2',
+        'hooks.prechangegroup.readonly=echo "Error: Permission denied (read-only)" >&2; false',
         '--config',
-        'hooks.prepushkey.readonly=echo "Error: Permission denied (read-only)" >&2',
+        'hooks.prepushkey.readonly=echo "Error: Permission denied (read-only)" >&2; false',
       ]
     return cmd
 

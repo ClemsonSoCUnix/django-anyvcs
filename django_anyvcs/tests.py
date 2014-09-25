@@ -83,9 +83,27 @@ class BaseTestCase(TestCase):
       path = os.path.join(*path)
     try:
       self.assertPathExists(path)
-      raise AssertionError("Path exists: ", path)
     except AssertionError:
-      pass
+      return
+    raise AssertionError("Path exists: ", path)
+
+class TestingFrameworkTestCase(BaseTestCase):
+
+  def test_assert_path_not_exists(self):
+    path = tempfile.mkdtemp(prefix='django-anyvcs-path-exists')
+    self.assertPathNotExists('/path/does/not/exist')
+    self.assertPathNotExists(['/path', 'does', 'not', 'exist'])
+    self.assertRaises(AssertionError, self.assertPathNotExists, path)
+    self.assertRaises(AssertionError, self.assertPathNotExists, ['/'] + path.split(os.path.pathsep))
+    os.rmdir(path)
+
+  def test_assert_path_exists(self):
+    path = tempfile.mkdtemp(prefix='django-anyvcs-path-exists')
+    self.assertRaises(AssertionError, self.assertPathExists, '/path/does/not/exist')
+    self.assertRaises(AssertionError, self.assertPathExists, ['/path', 'does', 'not', 'exist'])
+    self.assertPathExists(path)
+    self.assertPathExists(['/'] + path.split(os.path.pathsep))
+    os.rmdir(path)
 
 class CreateRepoTestCase(BaseTestCase):
   def test_invalid_names(self):

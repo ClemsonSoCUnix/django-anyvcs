@@ -1,0 +1,9 @@
+[
+    {
+        "model": "django_anyvcs.repo",
+        "fields": {
+            "name": "repo",
+            "path": "path/to/repo"
+        }
+    }
+]

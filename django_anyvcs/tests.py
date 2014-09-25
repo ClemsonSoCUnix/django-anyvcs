@@ -105,6 +105,19 @@ class TestingFrameworkTestCase(BaseTestCase):
     self.assertPathExists(['/'] + path.split(os.path.pathsep))
     os.rmdir(path)
 
+class FixtureTestCase(BaseTestCase):
+  fixtures = ['django_anyvcs_basic.json']
+
+  def setUp(self):
+    # Can't call super() here because fixtures are loaded before setUp()
+    self.repo = Repo.objects.get(name='repo')
+
+  def tearDown(self):
+    Repo.objects.all().delete()
+
+  def test_path_exists(self):
+    self.assertPathExists(self.repo.abspath)
+
 class CreateRepoTestCase(BaseTestCase):
   def test_invalid_names(self):
     for name in ('$', '/', 'a//b'):

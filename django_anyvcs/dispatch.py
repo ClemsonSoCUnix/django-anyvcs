@@ -34,6 +34,9 @@ GIT = os.getenv('GIT', 'git')
 HG = os.getenv('HG', 'hg')
 SVNSERVE = os.getenv('SVNSERVE', 'svnserve')
 
+class DispatchException(Exception):
+  pass
+
 class Request(object):
   postprocess = None
 
@@ -59,14 +62,14 @@ class Request(object):
       self.add_data(data)
     else:
       if content_type == 'text/plain':
-        raise Exception(response.readline().strip())
+        raise DispatchException(response.readline().strip())
       if content_type == 'application/json':
         data = json.load(response)
         if isinstance(data, dict) and 'error' in data:
-          raise Exception(data['error'])
+          raise DispatchException(data['error'])
         if isinstance(data, basestring):
-          raise Exception(data)
-      raise Exception('Backend failed', status)
+          raise DispatchException(data)
+      raise DispatchException('Backend failed', status)
 
   def get_command(self):
     raise NotImplementedError
@@ -92,7 +95,7 @@ class GitRequest(Request):
         repo_name = arg
         break
     else:
-      raise Exception('Repository not specified')
+      raise DispatchException('Repository not specified')
     repo_name = repo_name.lstrip('/')
     if repo_name.endswith('.git'):
       repo_name = repo_name[:-4]
@@ -102,10 +105,10 @@ class GitRequest(Request):
     rights = self.data['rights']
     path = self.data['path']
     if 'r' not in rights:
-      raise Exception('Permission denied')
+      raise DispatchException('Permission denied')
     if self.argv[0] == 'git-receive-pack':
       if 'w' not in rights:
-        raise Exception('Permission denied (read only)')
+        raise DispatchException('Permission denied (read only)')
     cmd = [GIT, 'shell', '-c', "%s '%s'" % (self.argv[0], path)]
     return cmd
 
@@ -119,14 +122,14 @@ class HgRequest(Request):
         repo_name = argv[i+1]
         break
     else:
-      raise Exception('Repository not specified')
+      raise DispatchException('Repository not specified')
     self.repo_name = repo_name.lstrip('/')
 
   def get_command(self):
     rights = self.data['rights']
     path = self.data['path']
     if 'r' not in rights:
-      raise Exception('Permission denied')
+      raise DispatchException('Permission denied')
     cmd = [HG, '-R', path, 'serve', '--stdio']
     if 'w' not in rights:
       cmd += [
@@ -157,9 +160,9 @@ def parse_command(cmd):
   try:
     argv = shlex.split(cmd)
   except ValueError as e:
-    raise Exception('Illegal command', e)
+    raise DispatchException('Illegal command', e)
   if not argv:
-    raise Exception('Command not specified')
+    raise DispatchException('Command not specified')
   return argv
 
 def get_request(argv, username=None):
@@ -169,7 +172,7 @@ def get_request(argv, username=None):
     return HgRequest(argv, username)
   if argv[0] == 'svnserve':
     return SvnRequest(argv, username)
-  raise Exception('Command not allowed', argv[0])
+  raise DispatchException('Command not allowed', argv[0])
 
 def ssh_dispatch(access_url, username):
   cmd = os.getenv('SSH_ORIGINAL_COMMAND', '')
@@ -183,7 +186,7 @@ def ssh_dispatch(access_url, username):
         params['u'] = username
       request.load_data(url, params)
     return request.run_command()
-  except Exception as e:
+  except DispatchException as e:
     sys.stderr.write('Error: ' + str(e) + '\n')
     sys.exit(1)
 

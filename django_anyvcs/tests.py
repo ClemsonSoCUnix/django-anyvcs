@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2014-2015, Clemson University
 # All rights reserved.
 #
@@ -28,18 +29,23 @@
 
 from django.test import TestCase
 from django.test.client import Client
+from django.http import Http404
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from unittest import skipIf, skipUnless
 from .models import Repo
 from . import settings
-from django_anyvcs import dispatch
+from django_anyvcs import dispatch, shortcuts
 import anyvcs.git, anyvcs.hg, anyvcs.svn
 import json
 import os
 import shutil
+import subprocess
 import tempfile
+
+DEVNULL = open(os.devnull, 'wb')
+GIT = 'git'
 
 URI_FORMAT = {
   ('git', 'ssh'): "{user}@{hostname}:{path}",
@@ -758,3 +764,70 @@ class RequestTestCase(BaseTestCase):
     result = request.postprocess('hg: cloning from path/to/code')
     expected = 'hg: cloning from bob/code'
     self.assertEqual(expected, result)
+
+class ShortcutsTestCase(BaseTestCase):
+
+  def setUp(self):
+    super(ShortcutsTestCase, self).setUp()
+    self.repo = Repo(name='repo', vcs='git')
+    self.repo.full_clean()
+    self.repo.save()
+
+    # Structure:
+    # .
+    # ├── a
+    # ├── b
+    # │   └── c
+    # └── d -> a
+    wc = tempfile.mktemp()
+    cmd = [GIT, 'clone', '-q', self.repo.abspath, wc]
+    subprocess.check_call(cmd, stderr=DEVNULL)
+    with open(os.path.join(wc, 'a'), 'w') as fp: pass
+    os.makedirs(os.path.join(wc, 'b'))
+    with open(os.path.join(wc, 'b', 'c'), 'w') as fp: pass
+    os.symlink('a', os.path.join(wc, 'd'))
+    cmd = [GIT, 'add', '-A', '.']
+    subprocess.check_call(cmd, cwd=wc)
+    cmd = [GIT, 'commit', '-q', '-m', 'initial commit']
+    subprocess.check_call(cmd, cwd=wc)
+    cmd = [GIT, 'push', '-q', '-u', 'origin', 'master']
+    subprocess.check_call(cmd, cwd=wc, stdout=DEVNULL)
+    self.branch = 'master'
+    self.rev1 = self.repo.repo.canonical_rev(self.branch)
+    shutil.rmtree(wc)
+    self.repo = Repo.objects.get()
+
+  def test_get_entry_or_404_file1(self):
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/a')
+    self.assertEqual('a', entry.path)
+    self.assertEqual('f', entry.type)
+
+  def test_get_entry_or_404_file2(self):
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/b/c')
+    self.assertEqual('b/c', entry.path)
+    self.assertEqual('f', entry.type)
+
+  def test_get_entry_or_404_dir1(self):
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/b')
+    self.assertEqual('b', entry.path)
+    self.assertEqual('d', entry.type)
+
+  def test_get_entry_or_404_link1(self):
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/d')
+    self.assertEqual('d', entry.path)
+    self.assertEqual('l', entry.type)
+
+  def test_get_entry_or_404_report1(self):
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/a',
+                                       report=('commit',))
+    self.assertEqual('a', entry.path)
+    self.assertEqual('f', entry.type)
+    self.assertEqual(self.rev1, entry.commit)
+
+  def test_get_entry_or_404_fail1(self):
+    self.assertRaises(Http404, shortcuts.get_entry_or_404,
+                      self.repo, self.rev1, 'notexist')
+
+  def test_get_entry_or_404_fail2(self):
+    self.assertRaises(Http404, shortcuts.get_entry_or_404,
+                      self.repo, 'notexist', '/a')

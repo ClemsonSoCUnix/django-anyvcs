@@ -765,20 +765,39 @@ class RequestTestCase(BaseTestCase):
     expected = 'hg: cloning from bob/code'
     self.assertEqual(expected, result)
 
-class ShortcutsTestCase(BaseTestCase):
+class PristineTestCase(BaseTestCase):
+  '''
+  Normal, pristine repository.
+  '''
 
   def setUp(self):
-    super(ShortcutsTestCase, self).setUp()
+    super(PristineTestCase, self).setUp()
     self.repo = Repo(name='repo', vcs='git')
     self.repo.full_clean()
     self.repo.save()
 
-    # Structure:
-    # .
-    # ├── a
-    # ├── b
-    # │   └── c
-    # └── d -> a
+  def test_get_entry_or_404_fail1(self):
+    self.assertRaises(Http404, shortcuts.get_entry_or_404,
+                      self.repo, 'notexist', 'notexist')
+
+class NormalContentsTestCase(BaseTestCase):
+  '''
+  Repository with one of every file type at rev1, and an empty tree at rev2.
+
+  Structure at rev1:
+  .
+  ├── a
+  ├── b
+  │   └── c
+  └── d -> a
+  '''
+
+  def setUp(self):
+    super(NormalContentsTestCase, self).setUp()
+    self.repo = Repo(name='repo', vcs='git')
+    self.repo.full_clean()
+    self.repo.save()
+
     wc = tempfile.mktemp()
     cmd = [GIT, 'clone', '-q', self.repo.abspath, wc]
     subprocess.check_call(cmd, stderr=DEVNULL)
@@ -790,34 +809,50 @@ class ShortcutsTestCase(BaseTestCase):
     subprocess.check_call(cmd, cwd=wc)
     cmd = [GIT, 'commit', '-q', '-m', 'initial commit']
     subprocess.check_call(cmd, cwd=wc)
+    cmd = [GIT, 'rm', '-rq', '.']
+    subprocess.check_call(cmd, cwd=wc)
+    cmd = [GIT, 'commit', '-q', '-m', 'remove all files']
+    subprocess.check_call(cmd, cwd=wc)
     cmd = [GIT, 'push', '-q', '-u', 'origin', 'master']
     subprocess.check_call(cmd, cwd=wc, stdout=DEVNULL)
     self.branch = 'master'
-    self.rev1 = self.repo.repo.canonical_rev(self.branch)
+    self.rev1 = self.repo.repo.canonical_rev(self.branch + '~1')
+    self.rev2 = self.repo.repo.canonical_rev(self.branch)
     shutil.rmtree(wc)
     self.repo = Repo.objects.get()
 
   def test_get_entry_or_404_file1(self):
+    '''Standard file test'''
     entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/a')
     self.assertEqual('a', entry.path)
     self.assertEqual('f', entry.type)
 
   def test_get_entry_or_404_file2(self):
+    '''File in directory structure test'''
     entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/b/c')
     self.assertEqual('b/c', entry.path)
     self.assertEqual('f', entry.type)
 
   def test_get_entry_or_404_dir1(self):
+    '''Standard directory test'''
     entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/b')
     self.assertEqual('b', entry.path)
     self.assertEqual('d', entry.type)
 
+  def test_get_entry_or_404_dir2(self):
+    '''Listing contents of empty tree should not 404'''
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev2, '/')
+    self.assertEqual('/', entry.path)
+    self.assertEqual('d', entry.type)
+
   def test_get_entry_or_404_link1(self):
+    '''Standard link test'''
     entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/d')
     self.assertEqual('d', entry.path)
     self.assertEqual('l', entry.type)
 
   def test_get_entry_or_404_report1(self):
+    '''Keyword arguments should pass through'''
     entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/a',
                                        report=('commit',))
     self.assertEqual('a', entry.path)
@@ -825,9 +860,16 @@ class ShortcutsTestCase(BaseTestCase):
     self.assertEqual(self.rev1, entry.commit)
 
   def test_get_entry_or_404_fail1(self):
+    '''Bad paths raise 404'''
     self.assertRaises(Http404, shortcuts.get_entry_or_404,
                       self.repo, self.rev1, 'notexist')
 
   def test_get_entry_or_404_fail2(self):
+    '''Bad revisions raise 404'''
     self.assertRaises(Http404, shortcuts.get_entry_or_404,
                       self.repo, 'notexist', '/a')
+
+  def test_get_entry_or_404_fail3(self):
+    '''Extra bad path test for the empty tree case'''
+    self.assertRaises(Http404, shortcuts.get_entry_or_404,
+                      self.repo, self.rev2, 'a')

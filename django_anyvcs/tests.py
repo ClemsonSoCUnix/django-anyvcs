@@ -782,7 +782,11 @@ class PristineTestCase(BaseTestCase):
 
 class NormalContentsTestCase(BaseTestCase):
   '''
-  Repository with one of every file type at rev1, and an empty tree at rev2.
+  Repository with some contents for testing purposes.
+
+  * rev1: One of every file type, including subdirs.
+  * rev2: Empty tree.
+  * rev3: Pathological symlink cases.
 
   Structure at rev1:
   .
@@ -790,6 +794,7 @@ class NormalContentsTestCase(BaseTestCase):
   ├── b
   │   └── c
   └── d -> a
+
   '''
 
   def setUp(self):
@@ -798,9 +803,12 @@ class NormalContentsTestCase(BaseTestCase):
     self.repo.full_clean()
     self.repo.save()
 
+    # Basic repository setup.
     wc = tempfile.mktemp()
     cmd = [GIT, 'clone', '-q', self.repo.abspath, wc]
     subprocess.check_call(cmd, stderr=DEVNULL)
+
+    # rev1 setup
     with open(os.path.join(wc, 'a'), 'w') as fp: pass
     os.makedirs(os.path.join(wc, 'b'))
     with open(os.path.join(wc, 'b', 'c'), 'w') as fp: pass
@@ -809,15 +817,21 @@ class NormalContentsTestCase(BaseTestCase):
     subprocess.check_call(cmd, cwd=wc)
     cmd = [GIT, 'commit', '-q', '-m', 'initial commit']
     subprocess.check_call(cmd, cwd=wc)
+
+    # rev2 setup
     cmd = [GIT, 'rm', '-rq', '.']
     subprocess.check_call(cmd, cwd=wc)
     cmd = [GIT, 'commit', '-q', '-m', 'remove all files']
     subprocess.check_call(cmd, cwd=wc)
+
+    # Push the result.
     cmd = [GIT, 'push', '-q', '-u', 'origin', 'master']
     subprocess.check_call(cmd, cwd=wc, stdout=DEVNULL)
+
+    # Set up some easy names.
     self.branch = 'master'
     self.rev1 = self.repo.repo.canonical_rev(self.branch + '~1')
-    self.rev2 = self.repo.repo.canonical_rev(self.branch)
+    self.rev2 = self.repo.repo.canonical_rev(self.branch + '~0')
     shutil.rmtree(wc)
     self.repo = Repo.objects.get()
 
@@ -873,3 +887,42 @@ class NormalContentsTestCase(BaseTestCase):
     '''Extra bad path test for the empty tree case'''
     self.assertRaises(Http404, shortcuts.get_entry_or_404,
                       self.repo, self.rev2, 'a')
+
+  def test_get_directory_contents1(self):
+    '''Basic usage'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/')
+    expected = [
+      {'name': 'a', 'path': 'a', 'type': 'f', 'url': 'a'},
+      {'name': 'b', 'path': 'b', 'type': 'd', 'url': 'b'},
+      {'name': 'd', 'path': 'd', 'type': 'l'},
+    ]
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents2(self):
+    '''Keyword arguments are passed through'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/',
+                                              report=('target',))
+    expected = [
+      {'name': 'a', 'path': 'a', 'type': 'f', 'url': 'a'},
+      {'name': 'b', 'path': 'b', 'type': 'd', 'url': 'b'},
+      {'name': 'd', 'path': 'd', 'type': 'l', 'target': 'a'},
+    ]
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents_subdir1(self):
+    '''Basic usage'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/b')
+    expected = [
+      {'name': '..', 'path': '..', 'type': 'd', 'url': '..'},
+      {'name': 'c', 'path': 'b/c', 'type': 'f', 'url': 'c'},
+    ]
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents_subdir2(self):
+    '''Disallow parent paths'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/b',
+                                              parents=False)
+    expected = [
+      {'name': 'c', 'path': 'b/c', 'type': 'f', 'url': 'c'},
+    ]
+    self.assertEqual(result, expected)

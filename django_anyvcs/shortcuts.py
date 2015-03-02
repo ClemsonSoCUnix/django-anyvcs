@@ -29,6 +29,8 @@
 from anyvcs.common import PathDoesNotExist
 from django.http import Http404
 
+import os
+
 def get_entry_or_404(repo, rev, path, **kw):
   '''
   Get entry via `repo.repo.ls()` or raise Http404.
@@ -42,3 +44,42 @@ def get_entry_or_404(repo, rev, path, **kw):
     return repo.repo.ls(rev, path, directory=True, **kw)[0]
   except PathDoesNotExist:
     raise Http404
+
+def get_directory_contents(repo, rev, path, key=None, parents=True, links=None,
+                           reverse_func=None, **kw):
+  '''
+  Get repository contents suitable for using in a template context.
+
+  '''
+  path = _normpath(path)
+  contents = repo.repo.ls(rev, path, **kw)
+
+  # Use relative paths by default for the URL.
+  reverse_func = reverse_func or (lambda p: p)
+
+  # Loop over the contents and add extra information in.
+  for entry in contents:
+    if entry.type != 'l':
+      entry.url = reverse_func(entry.name)
+
+  # Add parent directories if requested.
+  parent_path = _normpath(_pardir(path))
+  if path != '/' and parents:
+    entry = {
+      'name': '..',
+      'path': '..',
+      'type': 'd',
+      'url': reverse_func('..'),
+    }
+    contents.insert(0, entry)
+  return contents
+
+def _normpath(path):
+  path = os.path.normpath(path)
+  if path in ('.', '/'):
+    return '/'
+  return path
+
+def _pardir(path, levels=1):
+  args = ['..'] * levels
+  return os.path.join(path, *args)

@@ -26,7 +26,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from anyvcs.common import PathDoesNotExist
+from anyvcs.common import PathDoesNotExist, attrdict
 from django.http import Http404
 
 import os
@@ -55,22 +55,18 @@ def get_directory_contents(repo, rev, path, key=None, parents=True,
   contents = repo.repo.ls(rev, path, **kw)
 
   # Use relative paths by default for the URL.
-  reverse_func = reverse_func or (lambda p: p)
+  reverse_func = reverse_func or (lambda e: e.name)
 
   # Loop over the contents and add extra information in.
   for entry in contents:
     if entry.type != 'l':
-      entry.url = reverse_func(entry.name)
+      entry.url = reverse_func(entry)
 
   # Add parent directories if requested.
   parent_path = _normpath(_pardir(path))
   if path != '/' and parents:
-    entry = {
-      'name': '..',
-      'path': '..',
-      'type': 'd',
-      'url': reverse_func('..'),
-    }
+    entry = attrdict(name='..', path=parent_path.lstrip('/'), type='d')
+    entry.url = reverse_func(entry)
     contents.insert(0, entry)
   return contents
 

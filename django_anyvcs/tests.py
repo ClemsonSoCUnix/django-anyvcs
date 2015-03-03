@@ -913,7 +913,7 @@ class NormalContentsTestCase(BaseTestCase):
     '''Basic usage'''
     result = shortcuts.get_directory_contents(self.repo, self.rev1, '/b')
     expected = [
-      {'name': '..', 'path': '..', 'type': 'd', 'url': '..'},
+      {'name': '..', 'path': '', 'type': 'd', 'url': '..'},
       {'name': 'c', 'path': 'b/c', 'type': 'f', 'url': 'c'},
     ]
     self.assertEqual(result, expected)
@@ -924,5 +924,16 @@ class NormalContentsTestCase(BaseTestCase):
                                               parents=False)
     expected = [
       {'name': 'c', 'path': 'b/c', 'type': 'f', 'url': 'c'},
+    ]
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents_subdir3(self):
+    '''Basic usage'''
+    reverse_func = lambda e: 'http://example.com/repo/' + e.path
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/b',
+                                              reverse_func=reverse_func)
+    expected = [
+      {'name': '..', 'path': '', 'type': 'd', 'url': 'http://example.com/repo/'},
+      {'name': 'c', 'path': 'b/c', 'type': 'f', 'url': 'http://example.com/repo/b/c'},
     ]
     self.assertEqual(result, expected)

@@ -45,7 +45,7 @@ def get_entry_or_404(repo, rev, path, **kw):
   except PathDoesNotExist:
     raise Http404
 
-def get_directory_contents(repo, rev, path, key=None, parents=True, links=None,
+def get_directory_contents(repo, rev, path, key=None, parents=True,
                            reverse_func=None, **kw):
   '''
   Get repository contents suitable for using in a template context.

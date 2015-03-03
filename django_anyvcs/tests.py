@@ -959,7 +959,7 @@ class NormalContentsTestCase(BaseTestCase):
     self.assertEqual(result, expected)
 
   def test_get_directory_contents_subdir3(self):
-    '''Basic usage'''
+    '''Using a custom reverse_func'''
     reverse_func = lambda e: 'http://example.com/repo/' + e.path
     result = shortcuts.get_directory_contents(self.repo, self.rev1, '/b',
                                               reverse_func=reverse_func)

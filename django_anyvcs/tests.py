@@ -668,12 +668,12 @@ class RequestTestCase(BaseTestCase):
   def test_git_cmd2(self):
     request = dispatch.get_request(['git-upload-pack', 'bob/code'])
     request.data = {'rights': '', 'path': 'path/to/code'}
-    self.assertRaises(Exception, request.get_command)
+    self.assertRaises(dispatch.DispatchException, request.get_command)
 
   def test_git_cmd3(self):
     request = dispatch.get_request(['git-receive-pack', 'bob/code'])
     request.data = {'rights': 'r', 'path': 'path/to/code'}
-    self.assertRaises(Exception, request.get_command)
+    self.assertRaises(dispatch.DispatchException, request.get_command)
 
   def test_git_cmd4(self):
     request = dispatch.get_request(['git-upload-pack', '--someflag', 'bob/code'])
@@ -692,7 +692,7 @@ class RequestTestCase(BaseTestCase):
     self.assertEqual('bob/code', request.repo_name)
 
   def test_git_noname(self):
-    self.assertRaises(Exception, dispatch.get_request, ['git-receive-pack'])
+    self.assertRaises(dispatch.DispatchException, dispatch.get_request, ['git-receive-pack'])
 
   def test_hg_cmd1(self):
     '''Repository specified with -R
@@ -750,7 +750,7 @@ class RequestTestCase(BaseTestCase):
     self.assertEqual(expected, cmd)
 
   def test_bad_command1(self):
-    self.assertRaises(Exception, dispatch.get_request, ['rm', '-rf', '/'])
+    self.assertRaises(dispatch.DispatchException, dispatch.get_request, ['rm', '-rf', '/'])
 
   def test_hg_postprocess(self):
     request = dispatch.get_request(['hg', '--repository', 'bob/code'])

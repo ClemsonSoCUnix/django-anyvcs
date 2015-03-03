@@ -786,7 +786,6 @@ class NormalContentsTestCase(BaseTestCase):
 
   * rev1: One of every file type, including subdirs.
   * rev2: Empty tree.
-  * rev3: Pathological symlink cases.
 
   Structure at rev1:
   .

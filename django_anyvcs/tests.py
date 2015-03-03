@@ -909,6 +909,28 @@ class NormalContentsTestCase(BaseTestCase):
     ]
     self.assertEqual(result, expected)
 
+  def test_get_directory_contents3(self):
+    '''Test reverse sort parameter'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/',
+                                              reverse=True)
+    expected = [
+      {'name': 'd', 'path': 'd', 'type': 'l'},
+      {'name': 'b', 'path': 'b', 'type': 'd', 'url': 'b'},
+      {'name': 'a', 'path': 'a', 'type': 'f', 'url': 'a'},
+    ]
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents4(self):
+    '''Test sort key parameter'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/',
+                                              key=lambda e: e.type)
+    expected = [
+      {'name': 'b', 'path': 'b', 'type': 'd', 'url': 'b'},
+      {'name': 'a', 'path': 'a', 'type': 'f', 'url': 'a'},
+      {'name': 'd', 'path': 'd', 'type': 'l'},
+    ]
+    self.assertEqual(result, expected)
+
   def test_get_directory_contents_subdir1(self):
     '''Basic usage'''
     result = shortcuts.get_directory_contents(self.repo, self.rev1, '/b')

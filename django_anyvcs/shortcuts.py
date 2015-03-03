@@ -45,14 +45,15 @@ def get_entry_or_404(repo, rev, path, **kw):
   except PathDoesNotExist:
     raise Http404
 
-def get_directory_contents(repo, rev, path, key=None, parents=True,
-                           reverse_func=None, **kw):
+def get_directory_contents(repo, rev, path, key=None, reverse=False,
+                           parents=True, reverse_func=None, **kw):
   '''
   Get repository contents suitable for using in a template context.
 
   '''
   path = _normpath(path)
-  contents = repo.repo.ls(rev, path, **kw)
+  key = key or (lambda e: e.name)
+  contents = sorted(repo.repo.ls(rev, path, **kw), key=key, reverse=reverse)
 
   # Use relative paths by default for the URL.
   reverse_func = reverse_func or (lambda e: e.name)

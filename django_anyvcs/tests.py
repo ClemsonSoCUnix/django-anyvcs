@@ -807,6 +807,7 @@ class NormalContentsTestCase(BaseTestCase):
     wc = tempfile.mktemp()
     cmd = [GIT, 'clone', '-q', self.repo.abspath, wc]
     subprocess.check_call(cmd, stderr=DEVNULL)
+    setup_git(cwd=wc)
 
     # rev1 setup
     with open(os.path.join(wc, 'a'), 'w') as fp: pass
@@ -968,3 +969,9 @@ class NormalContentsTestCase(BaseTestCase):
       {'name': 'c', 'path': 'b/c', 'type': 'f', 'url': 'http://example.com/repo/b/c'},
     ]
     self.assertEqual(result, expected)
+
+def setup_git(**kw):
+  cmd = [GIT, 'config', 'user.name', 'Test User']
+  subprocess.check_call(cmd, **kw)
+  cmd = [GIT, 'config', 'user.email', 'test@example.com']
+  subprocess.check_call(cmd, **kw)

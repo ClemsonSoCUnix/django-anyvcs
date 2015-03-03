@@ -26,8 +26,11 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import logging
 import os
 import sys
+
+logger = logging.getLogger(__name__)
 
 VCSREPO_ROOT = os.getenv('VCSREPO_ROOT')
 GIT = os.getenv('GIT', 'git')
@@ -188,6 +191,11 @@ def ssh_dispatch(access_url, username):
     return request.run_command()
   except DispatchException as e:
     sys.stderr.write('Error: ' + str(e) + '\n')
+    sys.exit(1)
+  except:
+    message = 'Unhandled error during command dispatch'
+    logger.error(message, exc_info=True)
+    sys.stderr.write('%s\n' % message)
     sys.exit(1)
 
 def main():

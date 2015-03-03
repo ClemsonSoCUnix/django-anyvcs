@@ -46,22 +46,50 @@ def get_entry_or_404(repo, rev, path, **kw):
     raise Http404
 
 def get_directory_contents(repo, rev, path, key=None, reverse=False,
-                           parents=True, reverse_func=None, **kw):
+                           parents=True, reverse_func=None,
+                           resolve_commits=False, **kw):
   '''
   Get repository contents suitable for using in a template context.
+
+  With `key` and `reverse`, modify the sort order via `sorted()` of the
+  directory contents. The default is to sort by name.
+
+  With `parents` modify whether or not to include links to parent directories.
+  The default is to include them.
+
+  Provide a callable `reverse_func` to transform an entry into a URL. The
+  default is to generate relative links.
+
+  With `resolve_commits`, also include the commit log entry which last modified
+  the entry. The default is to not. This forces commits to be reported from the
+  call to `VCSRepo.ls()`.
 
   '''
   path = _normpath(path)
   key = key or (lambda e: e.name)
+
+  # Force the report commit flag if not specified and resolve_commits is True.
+  report = tuple(kw.get('report', ()))
+  if resolve_commits and not 'commit' in report:
+    report += ('commit',)
+    kw['report'] = report
+
   contents = sorted(repo.repo.ls(rev, path, **kw), key=key, reverse=reverse)
 
   # Use relative paths by default for the URL.
   reverse_func = reverse_func or (lambda e: e.name)
 
   # Loop over the contents and add extra information in.
+  cache = {}
   for entry in contents:
     if entry.type != 'l':
       entry.url = reverse_func(entry)
+    if resolve_commits:
+      commit = entry.commit
+      try:
+        entry.log = cache[commit]
+      except KeyError:
+        entry.log = cache[commit] = repo.repo.log(revrange=commit)
 
   # Add parent directories if requested.
   parent_path = _normpath(_pardir(path))

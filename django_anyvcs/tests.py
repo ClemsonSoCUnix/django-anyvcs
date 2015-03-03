@@ -931,6 +931,15 @@ class NormalContentsTestCase(BaseTestCase):
     ]
     self.assertEqual(result, expected)
 
+  def test_get_directory_contents5(self):
+    '''Test resolve_commits'''
+    result = [e.log.rev for e in
+              shortcuts.get_directory_contents(self.repo, self.rev1, '/',
+                                               resolve_commits=True)]
+    log = self.repo.repo.log(revrange=self.rev1)
+    expected = [self.rev1] * 3
+    self.assertEqual(result, expected)
+
   def test_get_directory_contents_subdir1(self):
     '''Basic usage'''
     result = shortcuts.get_directory_contents(self.repo, self.rev1, '/b')

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2014-2015, Clemson University
 # All rights reserved.
 #
@@ -28,18 +29,23 @@
 
 from django.test import TestCase
 from django.test.client import Client
+from django.http import Http404
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from unittest import skipIf, skipUnless
 from .models import Repo
 from . import settings
-from django_anyvcs import dispatch
+from django_anyvcs import dispatch, shortcuts
 import anyvcs.git, anyvcs.hg, anyvcs.svn
 import json
 import os
 import shutil
+import subprocess
 import tempfile
+
+DEVNULL = open(os.devnull, 'wb')
+GIT = 'git'
 
 URI_FORMAT = {
   ('git', 'ssh'): "{user}@{hostname}:{path}",
@@ -758,3 +764,213 @@ class RequestTestCase(BaseTestCase):
     result = request.postprocess('hg: cloning from path/to/code')
     expected = 'hg: cloning from bob/code'
     self.assertEqual(expected, result)
+
+class PristineTestCase(BaseTestCase):
+  '''
+  Normal, pristine repository.
+  '''
+
+  def setUp(self):
+    super(PristineTestCase, self).setUp()
+    self.repo = Repo(name='repo', vcs='git')
+    self.repo.full_clean()
+    self.repo.save()
+
+  def test_get_entry_or_404_fail1(self):
+    self.assertRaises(Http404, shortcuts.get_entry_or_404,
+                      self.repo, 'notexist', 'notexist')
+
+class NormalContentsTestCase(BaseTestCase):
+  '''
+  Repository with some contents for testing purposes.
+
+  * rev1: One of every file type, including subdirs.
+  * rev2: Empty tree.
+
+  Structure at rev1:
+  .
+  ├── a
+  ├── b
+  │   └── c
+  └── d -> a
+
+  '''
+
+  def setUp(self):
+    super(NormalContentsTestCase, self).setUp()
+    self.repo = Repo(name='repo', vcs='git')
+    self.repo.full_clean()
+    self.repo.save()
+
+    # Basic repository setup.
+    wc = tempfile.mktemp()
+    cmd = [GIT, 'clone', '-q', self.repo.abspath, wc]
+    subprocess.check_call(cmd, stderr=DEVNULL)
+    setup_git(cwd=wc)
+
+    # rev1 setup
+    with open(os.path.join(wc, 'a'), 'w') as fp: pass
+    os.makedirs(os.path.join(wc, 'b'))
+    with open(os.path.join(wc, 'b', 'c'), 'w') as fp: pass
+    os.symlink('a', os.path.join(wc, 'd'))
+    cmd = [GIT, 'add', '-A', '.']
+    subprocess.check_call(cmd, cwd=wc)
+    cmd = [GIT, 'commit', '-q', '-m', 'initial commit']
+    subprocess.check_call(cmd, cwd=wc)
+
+    # rev2 setup
+    cmd = [GIT, 'rm', '-rq', '.']
+    subprocess.check_call(cmd, cwd=wc)
+    cmd = [GIT, 'commit', '-q', '-m', 'remove all files']
+    subprocess.check_call(cmd, cwd=wc)
+
+    # Push the result.
+    cmd = [GIT, 'push', '-q', '-u', 'origin', 'master']
+    subprocess.check_call(cmd, cwd=wc, stdout=DEVNULL)
+
+    # Set up some easy names.
+    self.branch = 'master'
+    self.rev1 = self.repo.repo.canonical_rev(self.branch + '~1')
+    self.rev2 = self.repo.repo.canonical_rev(self.branch + '~0')
+    shutil.rmtree(wc)
+    self.repo = Repo.objects.get()
+
+  def test_get_entry_or_404_file1(self):
+    '''Standard file test'''
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/a')
+    self.assertEqual('a', entry.path)
+    self.assertEqual('f', entry.type)
+
+  def test_get_entry_or_404_file2(self):
+    '''File in directory structure test'''
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/b/c')
+    self.assertEqual('b/c', entry.path)
+    self.assertEqual('f', entry.type)
+
+  def test_get_entry_or_404_dir1(self):
+    '''Standard directory test'''
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/b')
+    self.assertEqual('b', entry.path)
+    self.assertEqual('d', entry.type)
+
+  def test_get_entry_or_404_dir2(self):
+    '''Listing contents of empty tree should not 404'''
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev2, '/')
+    self.assertEqual('/', entry.path)
+    self.assertEqual('d', entry.type)
+
+  def test_get_entry_or_404_link1(self):
+    '''Standard link test'''
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/d')
+    self.assertEqual('d', entry.path)
+    self.assertEqual('l', entry.type)
+
+  def test_get_entry_or_404_report1(self):
+    '''Keyword arguments should pass through'''
+    entry = shortcuts.get_entry_or_404(self.repo, self.rev1, '/a',
+                                       report=('commit',))
+    self.assertEqual('a', entry.path)
+    self.assertEqual('f', entry.type)
+    self.assertEqual(self.rev1, entry.commit)
+
+  def test_get_entry_or_404_fail1(self):
+    '''Bad paths raise 404'''
+    self.assertRaises(Http404, shortcuts.get_entry_or_404,
+                      self.repo, self.rev1, 'notexist')
+
+  def test_get_entry_or_404_fail2(self):
+    '''Bad revisions raise 404'''
+    self.assertRaises(Http404, shortcuts.get_entry_or_404,
+                      self.repo, 'notexist', '/a')
+
+  def test_get_entry_or_404_fail3(self):
+    '''Extra bad path test for the empty tree case'''
+    self.assertRaises(Http404, shortcuts.get_entry_or_404,
+                      self.repo, self.rev2, 'a')
+
+  def test_get_directory_contents1(self):
+    '''Basic usage'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/')
+    expected = [
+      {'name': 'a', 'path': 'a', 'type': 'f', 'url': 'a'},
+      {'name': 'b', 'path': 'b', 'type': 'd', 'url': 'b'},
+      {'name': 'd', 'path': 'd', 'type': 'l'},
+    ]
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents2(self):
+    '''Keyword arguments are passed through'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/',
+                                              report=('target',))
+    expected = [
+      {'name': 'a', 'path': 'a', 'type': 'f', 'url': 'a'},
+      {'name': 'b', 'path': 'b', 'type': 'd', 'url': 'b'},
+      {'name': 'd', 'path': 'd', 'type': 'l', 'target': 'a'},
+    ]
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents3(self):
+    '''Test reverse sort parameter'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/',
+                                              reverse=True)
+    expected = [
+      {'name': 'd', 'path': 'd', 'type': 'l'},
+      {'name': 'b', 'path': 'b', 'type': 'd', 'url': 'b'},
+      {'name': 'a', 'path': 'a', 'type': 'f', 'url': 'a'},
+    ]
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents4(self):
+    '''Test sort key parameter'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/',
+                                              key=lambda e: e.type)
+    expected = [
+      {'name': 'b', 'path': 'b', 'type': 'd', 'url': 'b'},
+      {'name': 'a', 'path': 'a', 'type': 'f', 'url': 'a'},
+      {'name': 'd', 'path': 'd', 'type': 'l'},
+    ]
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents5(self):
+    '''Test resolve_commits'''
+    result = [e.log.rev for e in
+              shortcuts.get_directory_contents(self.repo, self.rev1, '/',
+                                               resolve_commits=True)]
+    log = self.repo.repo.log(revrange=self.rev1)
+    expected = [self.rev1] * 3
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents_subdir1(self):
+    '''Basic usage'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/b')
+    expected = [
+      {'name': '..', 'path': '', 'type': 'd', 'url': '..'},
+      {'name': 'c', 'path': 'b/c', 'type': 'f', 'url': 'c'},
+    ]
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents_subdir2(self):
+    '''Disallow parent paths'''
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/b',
+                                              parents=False)
+    expected = [
+      {'name': 'c', 'path': 'b/c', 'type': 'f', 'url': 'c'},
+    ]
+    self.assertEqual(result, expected)
+
+  def test_get_directory_contents_subdir3(self):
+    '''Using a custom reverse_func'''
+    reverse_func = lambda e: 'http://example.com/repo/' + e.path
+    result = shortcuts.get_directory_contents(self.repo, self.rev1, '/b',
+                                              reverse_func=reverse_func)
+    expected = [
+      {'name': '..', 'path': '', 'type': 'd', 'url': 'http://example.com/repo/'},
+      {'name': 'c', 'path': 'b/c', 'type': 'f', 'url': 'http://example.com/repo/b/c'},
+    ]
+    self.assertEqual(result, expected)
+
+def setup_git(**kw):
+  cmd = [GIT, 'config', 'user.name', 'Test User']
+  subprocess.check_call(cmd, **kw)
+  cmd = [GIT, 'config', 'user.email', 'test@example.com']
+  subprocess.check_call(cmd, **kw)

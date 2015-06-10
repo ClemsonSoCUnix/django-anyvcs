@@ -1,7 +1,9 @@
 from django.core.urlresolvers import reverse
+from django.utils.encoding import DjangoUnicodeDecodeError
 from django.shortcuts import get_object_or_404, render, redirect
 from django_anyvcs.models import Repo
-from django_anyvcs.shortcuts import get_entry_or_404, get_directory_contents
+from django_anyvcs.shortcuts import (get_entry_or_404, get_directory_contents,
+                                     render_file)
 
 def repo_browse(request, name, rev=None, path=None):
   repo = get_object_or_404(Repo, name=name)
@@ -31,12 +33,18 @@ def repo_browse(request, name, rev=None, path=None):
     }
     return render(request, 'repo_browse_dir.html', context)
   elif entry.type == 'f':
-    contents = repo.repo.cat(rev, path)
-    context = {
-      'repo': repo,
-      'path': path,
-      'contents': contents,
-    }
-    return render(request, 'repo_browse_file.html', context)
+    return render_file('repo_browse_file.html', repo, rev, path,
+                       raw='raw' in request.GET,
+                       catch_encoding_errors=True,
+                       textfilter=_textfilter)
   else:
     return redirect(repo_browse, name)
+
+def _textfilter(contents, path, mimetype):
+  lines = contents.splitlines()
+  text = ''
+  for i, line in enumerate(lines):
+    text += '%02d. ' % (i + 1)
+    text += line.strip()
+    text += '\n'
+  return text

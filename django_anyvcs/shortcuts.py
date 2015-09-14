@@ -27,8 +27,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from anyvcs.common import PathDoesNotExist, attrdict
-from django.http import Http404
+from django.http import Http404, HttpResponse
+from django.shortcuts import render_to_response
+from django.utils.encoding import force_text
 
+import mimetypes
 import os
 
 def get_entry_or_404(repo, rev, path, **kw):
@@ -98,6 +101,68 @@ def get_directory_contents(repo, rev, path, key=None, reverse=False,
     entry.url = reverse_func(entry)
     contents.insert(0, entry)
   return contents
+
+def render_file(template, repo, rev, path, file_mimetype=None,
+                encoding='utf-8', extra_context=None, textfilter=None,
+                raw=False, contents=None, catch_encoding_errors=False, **kw):
+  '''
+  Render a file to a template, or return the raw contents of the file if it is
+  not a text file.
+
+  With `file_mimetype` you can modify the mimetype of the file. The default is
+  to detect the mimetype via the path and `mimetypes.guess_type()`. The
+  default `encoding` can also be changed. You should catch the encoding errors
+  which correspond to your chosen codec.
+
+  `extra_context` may be a dict-like object which are passed into context for
+  the template. By default, only `contents`, `rev`, and `path` are passed into
+  the template.
+
+  With `textfilter`, you can provide a filter function which modifies the
+  decoded text contents of the file. The function must take the file contents,
+  the path, and the file's mimetype as its three positional arguments. The
+  function is only called if the file is detected to be a text file.
+
+  If `raw` is True, the file will unconditionally be returned in its original
+  form.
+
+  If `contents` is given, the contents of the file are not retrieved, and it is
+  assumed that `contents` contains the contents of the file.
+
+  If `catch_encoding_errors` is True, encoding errors are handled by returning
+  the raw file. Otherwise, you must handle the encoding errors.
+
+  '''
+  if contents is None:
+    contents = repo.repo.cat(rev, path)
+
+  if file_mimetype is None:
+    file_mimetype, _ = mimetypes.guess_type(path)
+    file_mimetype = file_mimetype or 'application/octet-stream'
+
+  if raw or not file_mimetype.startswith('text/'):
+    return HttpResponse(contents, content_type=file_mimetype)
+
+  try:
+    decoded_contents = force_text(contents, encoding=encoding)
+  except:
+    if not catch_encoding_errors:
+      raise
+    return HttpResponse(contents, content_type=file_mimetype)
+
+  if textfilter is not None:
+    decoded_contents = textfilter(decoded_contents, path, file_mimetype)
+
+  context = {
+    'repo': repo,
+    'contents': decoded_contents,
+    'rev': rev,
+    'path': path,
+  }
+  if extra_context is not None:
+    context.update(extra_context)
+
+  return render_to_response(template, context, **kw)
 
 def _normpath(path):
   path = os.path.normpath(path)

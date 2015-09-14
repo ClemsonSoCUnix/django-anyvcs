@@ -33,11 +33,13 @@ from django.http import Http404
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.utils.encoding import DjangoUnicodeDecodeError
 from unittest import skipIf, skipUnless
 from .models import Repo
 from . import settings
 from django_anyvcs import dispatch, shortcuts
 import anyvcs.git, anyvcs.hg, anyvcs.svn
+import gzip
 import json
 import os
 import shutil
@@ -786,6 +788,7 @@ class NormalContentsTestCase(BaseTestCase):
 
   * rev1: One of every file type, including subdirs.
   * rev2: Empty tree.
+  * rev3: Text and binary files.
 
   Structure at rev1:
   .
@@ -793,6 +796,12 @@ class NormalContentsTestCase(BaseTestCase):
   ├── b
   │   └── c
   └── d -> a
+
+  Structure at rev3:
+  .
+  ├── encoding.txt
+  ├── text.txt
+  └── binary.gz
 
   '''
 
@@ -824,14 +833,27 @@ class NormalContentsTestCase(BaseTestCase):
     cmd = [GIT, 'commit', '-q', '-m', 'remove all files']
     subprocess.check_call(cmd, cwd=wc)
 
+    # rev3 setup
+    with open(os.path.join(wc, 'text.txt'), 'w') as fp:
+      fp.write('hello\n')
+    with open(os.path.join(wc, 'encoding.txt'), 'w') as fp:
+      fp.write(u'P\xe9rez\n'.encode('latin1'))
+    with gzip.open(os.path.join(wc, 'binary.gz'), 'wb') as fp:
+      fp.write('hello\n')
+    cmd = [GIT, 'add', '-A', '.']
+    subprocess.check_call(cmd, cwd=wc)
+    cmd = [GIT, 'commit', '-q', '-m', 'text and binary file']
+    subprocess.check_call(cmd, cwd=wc)
+
     # Push the result.
     cmd = [GIT, 'push', '-q', '-u', 'origin', 'master']
     subprocess.check_call(cmd, cwd=wc, stdout=DEVNULL)
 
     # Set up some easy names.
     self.branch = 'master'
-    self.rev1 = self.repo.repo.canonical_rev(self.branch + '~1')
-    self.rev2 = self.repo.repo.canonical_rev(self.branch + '~0')
+    self.rev1 = self.repo.repo.canonical_rev(self.branch + '~2')
+    self.rev2 = self.repo.repo.canonical_rev(self.branch + '~1')
+    self.rev3 = self.repo.repo.canonical_rev(self.branch + '~0')
     shutil.rmtree(wc)
     self.repo = Repo.objects.get()
 
@@ -968,6 +990,67 @@ class NormalContentsTestCase(BaseTestCase):
       {'name': 'c', 'path': 'b/c', 'type': 'f', 'url': 'http://example.com/repo/b/c'},
     ]
     self.assertEqual(result, expected)
+
+  def test_render_file1(self):
+    '''Basic text gets rendered into the template'''
+    result = shortcuts.render_file('raw.html',
+                                   self.repo, self.rev3, '/text.txt')
+    self.assertEqual('text/html; charset=utf-8', result['Content-Type'])
+
+  def test_render_file2(self):
+    '''Raw argument adds mimetype and returns the file.'''
+    result = shortcuts.render_file('raw.html',
+                                   self.repo, self.rev3, '/text.txt',
+                                   raw=True)
+    self.assertEqual('text/plain', result['Content-Type'])
+
+  def test_render_file3(self):
+    '''Test raw flag with mimetype override'''
+    result = shortcuts.render_file('raw.html',
+                                   self.repo, self.rev3, '/text.txt',
+                                   file_mimetype='text/x-csrc',
+                                   raw=True)
+    self.assertEqual('text/x-csrc', result['Content-Type'])
+
+  def test_render_file4(self):
+    '''Non-text files get passed through raw.'''
+    result = shortcuts.render_file('raw.html',
+                                   self.repo, self.rev3, '/binary.gz')
+    self.assertEqual('application/octet-stream', result['Content-Type'])
+
+  def test_render_file5(self):
+    '''Encoding errors are properly raised.'''
+    with self.assertRaises(DjangoUnicodeDecodeError):
+      shortcuts.render_file('raw.html',
+                            self.repo, self.rev3, '/encoding.txt')
+
+  def test_render_file6(self):
+    '''The `catch_endcoding_errors` argument handles encoding errors.'''
+    result = shortcuts.render_file('raw.html',
+                                   self.repo, self.rev3, '/encoding.txt',
+                                   catch_encoding_errors=True)
+    self.assertEqual('text/plain', result['Content-Type'])
+
+  def test_render_file7(self):
+    '''Test the textfilter parameter'''
+    def textfilter(contents, path, mimetype):
+      self.assertIsInstance(contents, basestring)
+      self.assertEqual('/text.txt', path)
+      self.assertEqual('text/plain', mimetype)
+      return 'test - ' + contents
+    response = shortcuts.render_file('raw.html',
+                                     self.repo, self.rev3, '/text.txt',
+                                     textfilter=textfilter)
+    self.assertEqual('test - hello\n\n', response.content)
+
+  def test_render_file8(self):
+    '''Test the context'''
+    response = self.client.get('/browse/repo/%s/text.txt' % self.rev3)
+    self.assertEqual(self.repo.pk, response.context['repo'].pk)
+    self.assertEqual('/text.txt', response.context['path'])
+    self.assertEqual(self.rev3, response.context['rev'])
+    self.assertIsInstance(response.context['contents'], basestring)
+
 
 def setup_git(**kw):
   cmd = [GIT, 'config', 'user.name', 'Test User']

@@ -44,7 +44,7 @@ setup(
   license='BSD',
   description='A Django app providing homogeneous management of VCS systems.',
   long_description=README,
-  url='https://bitbucket.org/ClemsonSoCUnix/django-anyvcs',
+  url='https://github.com/ClemsonSoCUnix/django-anyvcs',
   author='Scott Duckworth',
   author_email='sduckwo@clemson.edu',
   classifiers=[

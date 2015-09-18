@@ -117,5 +117,5 @@ Although not a strict dependency, django-anyvcs was designed to be used in
 conjunction with django-sshkey_ (version 2.0.0 or greater) and would be
 fairly useless without it or something that provides a similar functionality.
 
-.. _django-sshkey: https://bitbucket.org/ClemsonSoCUnix/django-sshkey
+.. _django-sshkey: https://github.com/ClemsonSoCUnix/django-sshkey
 .. _python-anyvcs: https://github.com/ScottDuckworth/python-anyvcs

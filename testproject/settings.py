@@ -10,6 +10,7 @@ https://docs.djangoproject.com/en/1.6/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import django
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 
@@ -36,10 +37,12 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'south',
     'django_anyvcs',
     'django_sshkey',
 )
+
+if django.VERSION < (1, 7):
+    INSTALLED_APPS += ('south',)
 
 MIDDLEWARE_CLASSES = (
     'django.contrib.sessions.middleware.SessionMiddleware',

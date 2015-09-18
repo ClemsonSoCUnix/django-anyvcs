@@ -2,3 +2,4 @@
 /django_anyvcs.egg-info
 /db.sqlite3
 /repo-root
+.tox

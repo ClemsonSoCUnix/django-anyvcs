@@ -87,7 +87,8 @@ def get_directory_contents(repo, rev, path, key=None, reverse=False,
   for entry in contents:
     if entry.type != 'l':
       entry.url = reverse_func(entry)
-    if resolve_commits:
+    # XXX The check for the commit is a hack around python-anyvcs#65
+    if resolve_commits and 'commit' in entry:
       commit = entry.commit
       try:
         entry.log = cache[commit]

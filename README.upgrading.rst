@@ -1,12 +1,9 @@
 Upgrading and Downgrading
 =========================
 
-django-anyvcs is equipped with South_ migrations.  This makes changes to
-the database schema in upgrades or downgrades a simple process.  Migrations
-will only be present on minor version changes.
-
-To use South migrations, you must have the south app in your project's
-INSTALLED_APPS.
+From django-anyvcs 1.1 to 2.3, South_ migrations were provided. Starting with
+2.4, South support was discontinued in favor of the Django native migration
+system.
 
 The following table maps django-anyvcs version to migration labels:
 
@@ -21,7 +18,8 @@ The following table maps django-anyvcs version to migration labels:
 +---------+---------------+-------+---------------------------------------+
 | 2.1     | django_anyvcs | 0004  |                                       |
 +---------+---------------+-------+---------------------------------------+
-
+| 2.4     | django_anyvcs | 0001  | Start using Django migrations         |
++---------+---------------+-------+---------------------------------------+
 
 To upgrade, install the new version of django-anyvcs and then migrate your
 project to its corresponding label from the table above using the following
@@ -32,6 +30,22 @@ command::
 To downgrade, perform the migration down to the label of the desired version
 before installing the older django-anyvcs.
 
+Upgrading from <=2.3.x to 2.4.x
+-------------------------------
+
+Starting with django-anyvcs 2.4, South support is discontinued in favor of
+Django's native migration system. The preferred upgrade path for pre-2.4
+installations of django-anyvcs is:
+
+1. Upgrade to South 1.0+.
+2. Upgrade to django-anyvcs 2.3 using the South migrations.
+3. Remove south from your ``INSTALLED_APPS``.
+4. Upgrade to Django 1.7+ and django-anyvcs 2.4+.
+5. Run ``python manage.py migrate --fake-initial``.
+
+You may also read Django's instructions on `upgrading from south`_.
+
+.. _`upgrading from south`: https://docs.djangoproject.com/en/dev/topics/migrations/#upgrading-from-south
 
 Upgrading from pre-2.3
 ----------------------

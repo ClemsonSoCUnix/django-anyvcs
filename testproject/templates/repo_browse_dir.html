@@ -1,0 +1,42 @@
+<html>
+  <head>
+    <title>{{ repo.name }}</title>
+  </head>
+  <body>
+    <h2>Contents of {{ path }}</h2>
+    {% if contents %}
+      <table>
+        <tr>
+          <th>type</th>
+          <th>name</th>
+          <th>author</th>
+          <th>message</th>
+          <th>size</th>
+          <th>last modified</th>
+        </tr>
+        {% for entry in contents %}
+          <tr>
+            <td>{{ entry.type }}</td>
+            <td>
+              {% if entry.type == 'l' %}
+                {{ entry.name }}{% if 'target' in entry %} &raquo; {{ entry.target }}{% endif %}
+              {% else %}
+                <a href='{{ entry.url }}'>{{ entry.name }}</a>
+              {% endif %}
+            </td>
+            <td>{% if 'log' in entry %}{{ entry.log.author }}{% endif %}</td>
+            <td>{% if 'log' in entry %}{{ entry.log.subject }}{% endif %}</td>
+            <td>{% if 'size' in entry %}{{ entry.size|filesizeformat }}{% endif %}</td>
+            <td>{% if 'log' in entry %}{{ entry.log.date }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>
+        Empty directory.
+      </p>
+    {% endif %}
+    <ul>
+    </ul>
+  </body>
+</html>

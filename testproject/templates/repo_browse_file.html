@@ -1,0 +1,17 @@
+<html>
+  <head>
+    <title>{{ repo.name }}</title>
+  </head>
+  <body>
+    <h2>Contents of {{ path }} @ {{ rev }}</h2>
+    {% if contents %}
+      <pre>{{ contents }}</pre>
+    {% else %}
+      <p>
+        Empty file.
+      </p>
+    {% endif %}
+    <ul>
+    </ul>
+  </body>
+</html>

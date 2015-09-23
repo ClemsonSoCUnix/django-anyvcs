@@ -2,6 +2,15 @@
 Release Notes for django-anyvcs
 ===============================
 
+2.4.0 (2015-09-23)
+------------------
+
+* Support for Django 1.4 through 1.8.
+* Discontinue South migrations in favor of native Django migrations.
+* Create the ``django_anyvcs.shortcuts`` module and write
+  ``get_entry_or_404()``, ``get_directory_contents()`` and ``render_file()``.
+* Bug fix: log errors which occur during repository access.
+
 2.3.4 (2014-09-22)
 ------------------
 
@@ -33,7 +42,7 @@ Release Notes for django-anyvcs
   * Must run "relocate path" admin action on all Subversion repositories
   * .byname directory is no longer needed
   * Directory structure is configurable, run "relocate paths" admin action to
-    apply new structure
+  apply new structure
   * Default structure separates different VCS types into subdirectories
 * Changing the path now moves the repository on disk
 * Allow for absolute paths for repositories

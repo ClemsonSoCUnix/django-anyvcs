@@ -18,14 +18,15 @@
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 
 from django.test import TestCase
 from django.test.client import Client
@@ -34,11 +35,13 @@ from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils.encoding import DjangoUnicodeDecodeError
-from unittest import skipIf, skipUnless
+from unittest import skipUnless
 from .models import Repo
 from . import settings
 from django_anyvcs import dispatch, shortcuts
-import anyvcs.git, anyvcs.hg, anyvcs.svn
+import anyvcs.git
+import anyvcs.hg
+import anyvcs.svn
 import gzip
 import json
 import os
@@ -63,6 +66,7 @@ URI_CONTEXT = {
   'user': 'user',
   'hostname': 'hostname',
 }
+
 
 class BaseTestCase(TestCase):
   def setUp(self):
@@ -95,6 +99,7 @@ class BaseTestCase(TestCase):
       return
     raise AssertionError("Path exists: ", path)
 
+
 class TestingFrameworkTestCase(BaseTestCase):
 
   def test_assert_path_not_exists(self):
@@ -102,16 +107,20 @@ class TestingFrameworkTestCase(BaseTestCase):
     self.assertPathNotExists('/path/does/not/exist')
     self.assertPathNotExists(['/path', 'does', 'not', 'exist'])
     self.assertRaises(AssertionError, self.assertPathNotExists, path)
-    self.assertRaises(AssertionError, self.assertPathNotExists, ['/'] + path.split(os.path.pathsep))
+    self.assertRaises(AssertionError, self.assertPathNotExists,
+                      ['/'] + path.split(os.path.pathsep))
     os.rmdir(path)
 
   def test_assert_path_exists(self):
     path = tempfile.mkdtemp(prefix='django-anyvcs-path-exists')
-    self.assertRaises(AssertionError, self.assertPathExists, '/path/does/not/exist')
-    self.assertRaises(AssertionError, self.assertPathExists, ['/path', 'does', 'not', 'exist'])
+    self.assertRaises(AssertionError, self.assertPathExists,
+                      '/path/does/not/exist')
+    self.assertRaises(AssertionError, self.assertPathExists,
+                      ['/path', 'does', 'not', 'exist'])
     self.assertPathExists(path)
     self.assertPathExists(['/'] + path.split(os.path.pathsep))
     os.rmdir(path)
+
 
 class FixtureTestCase(BaseTestCase):
   fixtures = ['django_anyvcs_basic.json']
@@ -125,6 +134,7 @@ class FixtureTestCase(BaseTestCase):
 
   def test_path_exists(self):
     self.assertPathExists(self.repo.abspath)
+
 
 class CreateRepoTestCase(BaseTestCase):
   def test_invalid_names(self):
@@ -196,7 +206,8 @@ class CreateRepoTestCase(BaseTestCase):
     repo.full_clean()
     repo.save()
     self.assertEqual(repo.path, os.path.join('svn', 'a'))
-    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'svn', 'a'))
+    self.assertEqual(repo.abspath,
+                     os.path.join(settings.VCSREPO_ROOT, 'svn', 'a'))
     self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
 
   def test_svn_without_path(self):
@@ -204,7 +215,8 @@ class CreateRepoTestCase(BaseTestCase):
     repo.full_clean()
     repo.save()
     self.assertEqual(repo.path, os.path.join('svn', 'a'))
-    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'svn', 'a'))
+    self.assertEqual(repo.abspath,
+                     os.path.join(settings.VCSREPO_ROOT, 'svn', 'a'))
     self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
 
   def test_svn_absolute_path(self):
@@ -214,9 +226,11 @@ class CreateRepoTestCase(BaseTestCase):
     repo.full_clean()
     repo.save()
     self.assertEqual(repo.path, os.path.join('svn', 'a'))
-    self.assertEqual(repo.abspath, os.path.join(settings.VCSREPO_ROOT, 'svn', 'a'))
+    self.assertEqual(repo.abspath,
+                     os.path.join(settings.VCSREPO_ROOT, 'svn', 'a'))
     self.assertIsInstance(repo.repo, anyvcs.svn.SvnRepo)
     shutil.rmtree(d)
+
 
 class ChangeRepoTestCase(BaseTestCase):
   def test_rename_git(self):
@@ -266,6 +280,7 @@ class ChangeRepoTestCase(BaseTestCase):
     self.assertEqual(repo.path, os.path.join('svn', 'a'))
     self.assertPathExists(repo.abspath)
 
+
 class CannotDeleteSymlinkTestCase(BaseTestCase):
   def test(self):
     os.mkdir(os.path.join(settings.VCSREPO_ROOT, 'svn.target'))
@@ -274,6 +289,7 @@ class CannotDeleteSymlinkTestCase(BaseTestCase):
     repo.full_clean()
     repo.save()
     repo.delete()
+
 
 class LookupTestCase(BaseTestCase):
   @classmethod
@@ -296,10 +312,10 @@ class LookupTestCase(BaseTestCase):
     vcs = 'git'
     for public_read, public_rights in ((False, '-'), (True, 'r')):
       repo = Repo.objects.create(
-        name = 'repo',
-        path = 'repo',
-        vcs = vcs,
-        public_read = public_read,
+        name='repo',
+        path='repo',
+        vcs=vcs,
+        public_read=public_read,
       )
       client = Client()
       url = reverse('django_anyvcs.views.access', args=(repo.name,))
@@ -309,7 +325,8 @@ class LookupTestCase(BaseTestCase):
       self.assertEqual(response['Content-Type'], 'application/json')
       document = json.loads(response.content)
       self.assertIn('path', document)
-      self.assertEqual(document['path'], os.path.join(settings.VCSREPO_ROOT, 'repo'))
+      self.assertEqual(document['path'],
+                       os.path.join(settings.VCSREPO_ROOT, 'repo'))
       self.assertIn('vcs', document)
       self.assertEqual(document['vcs'], vcs)
       self.assertIn('rights', document)
@@ -320,10 +337,10 @@ class LookupTestCase(BaseTestCase):
     vcs = 'hg'
     for public_read, public_rights in ((False, '-'), (True, 'r')):
       repo = Repo.objects.create(
-        name = 'repo',
-        path = 'repo',
-        vcs = vcs,
-        public_read = public_read,
+        name='repo',
+        path='repo',
+        vcs=vcs,
+        public_read=public_read,
       )
       client = Client()
       url = reverse('django_anyvcs.views.access', args=(repo.name,))
@@ -333,7 +350,8 @@ class LookupTestCase(BaseTestCase):
       self.assertEqual(response['Content-Type'], 'application/json')
       document = json.loads(response.content)
       self.assertIn('path', document)
-      self.assertEqual(document['path'], os.path.join(settings.VCSREPO_ROOT, 'repo'))
+      self.assertEqual(document['path'],
+                       os.path.join(settings.VCSREPO_ROOT, 'repo'))
       self.assertIn('vcs', document)
       self.assertEqual(document['vcs'], vcs)
       self.assertIn('rights', document)
@@ -350,15 +368,15 @@ class LookupTestCase(BaseTestCase):
     for public_read, public_rights in ((False, '-'), (True, 'r')):
       for user_rights in ('-', 'r', 'rw'):
         repo = Repo.objects.create(
-          name = 'repo',
-          path = 'repo',
-          vcs = vcs,
-          public_read = public_read,
+          name='repo',
+          path='repo',
+          vcs=vcs,
+          public_read=public_read,
         )
         UserRights.objects.create(
-          repo = repo,
-          user = self.user1,
-          rights = user_rights,
+          repo=repo,
+          user=self.user1,
+          rights=user_rights,
         )
         client = Client()
         url = reverse('django_anyvcs.views.access', args=(repo.name,))
@@ -368,7 +386,8 @@ class LookupTestCase(BaseTestCase):
         self.assertEqual(response['Content-Type'], 'application/json')
         document = json.loads(response.content)
         self.assertIn('path', document)
-        self.assertEqual(document['path'], os.path.join(settings.VCSREPO_ROOT, 'repo'))
+        self.assertEqual(document['path'],
+                         os.path.join(settings.VCSREPO_ROOT, 'repo'))
         self.assertIn('vcs', document)
         self.assertEqual(document['vcs'], vcs)
         self.assertIn('rights', document)
@@ -385,15 +404,15 @@ class LookupTestCase(BaseTestCase):
     for public_read, public_rights in ((False, '-'), (True, 'r')):
       for group_rights in ('-', 'r', 'rw'):
         repo = Repo.objects.create(
-          name = 'repo',
-          path = 'repo',
-          vcs = vcs,
-          public_read = public_read,
+          name='repo',
+          path='repo',
+          vcs=vcs,
+          public_read=public_read,
         )
         GroupRights.objects.create(
-          repo = repo,
-          group = self.group1,
-          rights = group_rights,
+          repo=repo,
+          group=self.group1,
+          rights=group_rights,
         )
         client = Client()
         url = reverse('django_anyvcs.views.access', args=(repo.name,))
@@ -403,7 +422,8 @@ class LookupTestCase(BaseTestCase):
         self.assertEqual(response['Content-Type'], 'application/json')
         document = json.loads(response.content)
         self.assertIn('path', document)
-        self.assertEqual(document['path'], os.path.join(settings.VCSREPO_ROOT, 'repo'))
+        self.assertEqual(document['path'],
+                         os.path.join(settings.VCSREPO_ROOT, 'repo'))
         self.assertIn('vcs', document)
         self.assertEqual(document['vcs'], vcs)
         self.assertIn('rights', document)
@@ -420,19 +440,19 @@ class LookupTestCase(BaseTestCase):
     for group_rights in ('-', 'r', 'rw'):
       for user_rights in ('-', 'r', 'rw'):
         repo = Repo.objects.create(
-          name = 'repo',
-          path = 'repo',
-          vcs = vcs,
+          name='repo',
+          path='repo',
+          vcs=vcs,
         )
         UserRights.objects.create(
-          repo = repo,
-          user = self.user1,
-          rights = user_rights,
+          repo=repo,
+          user=self.user1,
+          rights=user_rights,
         )
         GroupRights.objects.create(
-          repo = repo,
-          group = self.group1,
-          rights = group_rights,
+          repo=repo,
+          group=self.group1,
+          rights=group_rights,
         )
         client = Client()
         url = reverse('django_anyvcs.views.access', args=(repo.name,))
@@ -442,7 +462,8 @@ class LookupTestCase(BaseTestCase):
         self.assertEqual(response['Content-Type'], 'application/json')
         document = json.loads(response.content)
         self.assertIn('path', document)
-        self.assertEqual(document['path'], os.path.join(settings.VCSREPO_ROOT, 'repo'))
+        self.assertEqual(document['path'],
+                         os.path.join(settings.VCSREPO_ROOT, 'repo'))
         self.assertIn('vcs', document)
         self.assertEqual(document['vcs'], vcs)
         self.assertIn('rights', document)
@@ -451,9 +472,9 @@ class LookupTestCase(BaseTestCase):
 
   def test_rights_function(self):
     repo = Repo.objects.create(
-      name = 'repo',
-      path = 'repo',
-      vcs = 'git',
+      name='repo',
+      path='repo',
+      vcs='git',
     )
     original_rights_function = settings.VCSREPO_RIGHTS_FUNCTION
     try:
@@ -474,6 +495,7 @@ class LookupTestCase(BaseTestCase):
         self.assertEqual(document['rights'], rights)
     finally:
       settings.VCSREPO_RIGHTS_FUNCTION = original_rights_function
+
 
 class SvnAuthzTestCase(BaseTestCase):
   def setUp(self):
@@ -496,16 +518,16 @@ class SvnAuthzTestCase(BaseTestCase):
     super(SvnAuthzTestCase, self).tearDown()
 
   @skipUnless(
-    settings.VCSREPO_USE_USER_RIGHTS
-    and settings.VCSREPO_USER_MODEL == 'auth.User',
+    settings.VCSREPO_USE_USER_RIGHTS and
+    settings.VCSREPO_USER_MODEL == 'auth.User',
     "not using UserRights with auth.User"
   )
   def test_add_user_rights(self):
     from .models import UserRights
-    rights = UserRights.objects.create(
-      repo = self.repo,
-      user = self.user1,
-      rights = 'r',
+    UserRights.objects.create(
+      repo=self.repo,
+      user=self.user1,
+      rights='r',
     )
     self.config.read(self.authz)
     self.assertTrue(self.config.has_section('/'))
@@ -513,16 +535,16 @@ class SvnAuthzTestCase(BaseTestCase):
     self.assertEqual(self.config.get('/', self.user1.username), 'r')
 
   @skipUnless(
-    settings.VCSREPO_USE_USER_RIGHTS
-    and settings.VCSREPO_USER_MODEL == 'auth.User',
+    settings.VCSREPO_USE_USER_RIGHTS and
+    settings.VCSREPO_USER_MODEL == 'auth.User',
     "not using UserRights with auth.User"
   )
   def test_remove_user_rights(self):
     from .models import UserRights
     rights = UserRights.objects.create(
-      repo = self.repo,
-      user = self.user1,
-      rights = 'r',
+      repo=self.repo,
+      user=self.user1,
+      rights='r',
     )
     rights.delete()
     self.config.read(self.authz)
@@ -530,17 +552,17 @@ class SvnAuthzTestCase(BaseTestCase):
     self.assertFalse(self.config.has_option('/', self.user1.username))
 
   @skipUnless(
-    settings.VCSREPO_USE_GROUP_RIGHTS
-    and settings.VCSREPO_USER_MODEL == 'auth.User'
-    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    settings.VCSREPO_USE_GROUP_RIGHTS and
+    settings.VCSREPO_USER_MODEL == 'auth.User' and
+    settings.VCSREPO_GROUP_MODEL == 'auth.Group',
     "not using GroupRights with auth.User and auth.Group"
   )
   def test_add_group_rights(self):
     from .models import GroupRights
-    rights = GroupRights.objects.create(
-      repo = self.repo,
-      group = self.group1,
-      rights = 'r',
+    GroupRights.objects.create(
+      repo=self.repo,
+      group=self.group1,
+      rights='r',
     )
     g = '@' + self.group1.name
     self.config.read(self.authz)
@@ -552,17 +574,17 @@ class SvnAuthzTestCase(BaseTestCase):
     self.assertEqual(self.config.get('/', g), 'r')
 
   @skipUnless(
-    settings.VCSREPO_USE_GROUP_RIGHTS
-    and settings.VCSREPO_USER_MODEL == 'auth.User'
-    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    settings.VCSREPO_USE_GROUP_RIGHTS and
+    settings.VCSREPO_USER_MODEL == 'auth.User' and
+    settings.VCSREPO_GROUP_MODEL == 'auth.Group',
     "not using GroupRights with auth.User and auth.Group"
   )
   def test_remove_group_rights(self):
     from .models import GroupRights
     rights = GroupRights.objects.create(
-      repo = self.repo,
-      group = self.group1,
-      rights = 'r',
+      repo=self.repo,
+      group=self.group1,
+      rights='r',
     )
     rights.delete()
     g = '@' + self.group1.name
@@ -573,17 +595,17 @@ class SvnAuthzTestCase(BaseTestCase):
     self.assertFalse(self.config.has_option('/', g))
 
   @skipUnless(
-    settings.VCSREPO_USE_GROUP_RIGHTS
-    and settings.VCSREPO_USER_MODEL == 'auth.User'
-    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    settings.VCSREPO_USE_GROUP_RIGHTS and
+    settings.VCSREPO_USER_MODEL == 'auth.User' and
+    settings.VCSREPO_GROUP_MODEL == 'auth.Group',
     "not using GroupRights with auth.User and auth.Group"
   )
   def test_add_user_to_group(self):
     from .models import GroupRights
-    rights = GroupRights.objects.create(
-      repo = self.repo,
-      group = self.group1,
-      rights = 'r',
+    GroupRights.objects.create(
+      repo=self.repo,
+      group=self.group1,
+      rights='r',
     )
     self.group1.user_set.add(self.user2)
     g = '@' + self.group1.name
@@ -597,17 +619,17 @@ class SvnAuthzTestCase(BaseTestCase):
     self.assertEqual(self.config.get('/', g), 'r')
 
   @skipUnless(
-    settings.VCSREPO_USE_GROUP_RIGHTS
-    and settings.VCSREPO_USER_MODEL == 'auth.User'
-    and settings.VCSREPO_GROUP_MODEL == 'auth.Group',
+    settings.VCSREPO_USE_GROUP_RIGHTS and
+    settings.VCSREPO_USER_MODEL == 'auth.User' and
+    settings.VCSREPO_GROUP_MODEL == 'auth.Group',
     "not using GroupRights with auth.User and auth.Group"
   )
   def test_remove_user_from_group(self):
     from .models import GroupRights
-    rights = GroupRights.objects.create(
-      repo = self.repo,
-      group = self.group1,
-      rights = 'r',
+    GroupRights.objects.create(
+      repo=self.repo,
+      group=self.group1,
+      rights='r',
     )
     self.group1.user_set.remove(self.user1)
     g = '@' + self.group1.name
@@ -618,6 +640,7 @@ class SvnAuthzTestCase(BaseTestCase):
     self.assertTrue(self.config.has_section('/'))
     self.assertTrue(self.config.has_option('/', g))
     self.assertEqual(self.config.get('/', g), 'r')
+
 
 class RepoUriTestCase(BaseTestCase):
   def test_svn(self):
@@ -656,6 +679,7 @@ class RepoUriTestCase(BaseTestCase):
     self.assertEqual(hg.anonymous_ssh_uri, correct)
     hg.delete()
 
+
 class RequestTestCase(BaseTestCase):
 
   def setUp(self):
@@ -684,7 +708,8 @@ class RequestTestCase(BaseTestCase):
     self.assertRaises(dispatch.DispatchException, request.get_command)
 
   def test_git_cmd4(self):
-    request = dispatch.get_request(['git-upload-pack', '--someflag', 'bob/code'])
+    request = dispatch.get_request(['git-upload-pack', '--someflag',
+                                    'bob/code'])
     request.data = {'rights': 'r', 'path': 'path/to/code'}
     cmd = request.get_command()
     expected = ['git', 'shell', '-c',
@@ -695,12 +720,13 @@ class RequestTestCase(BaseTestCase):
     request = dispatch.get_request(['git-upload-pack', 'bob/code'])
     self.assertEqual('bob/code', request.repo_name)
 
-  def test_git_repo_name1(self):
+  def test_git_repo_name2(self):
     request = dispatch.get_request(['git-upload-pack', 'bob/code.git'])
     self.assertEqual('bob/code', request.repo_name)
 
   def test_git_noname(self):
-    self.assertRaises(dispatch.DispatchException, dispatch.get_request, ['git-receive-pack'])
+    self.assertRaises(dispatch.DispatchException, dispatch.get_request,
+                      ['git-receive-pack'])
 
   def test_hg_cmd1(self):
     '''Repository specified with -R
@@ -726,11 +752,11 @@ class RequestTestCase(BaseTestCase):
     request = dispatch.get_request(['hg', '--repository', 'bob/code'])
     request.data = {'rights': 'r', 'path': 'path/to/code'}
     cmd = request.get_command()
-    expected = ['hg', '-R', 'path/to/code', 'serve', '--stdio',
-        '--config',
-        'hooks.prechangegroup.readonly=echo "Error: Permission denied (read-only)" >&2; false',
-        '--config',
-        'hooks.prepushkey.readonly=echo "Error: Permission denied (read-only)" >&2; false',
+    hook = 'echo "Error: Permission denied (read-only)" >&2; false'
+    expected = [
+        'hg', '-R', 'path/to/code', 'serve', '--stdio',
+        '--config', 'hooks.prechangegroup.readonly=' + hook,
+        '--config', 'hooks.prepushkey.readonly=' + hook,
     ]
     self.assertEqual(expected, cmd)
 
@@ -741,7 +767,7 @@ class RequestTestCase(BaseTestCase):
     request.data = {'rights': 'r', 'path': 'path/to/code'}
     cmd = request.get_command()
     expected = ['svnserve',
-                '--root',  os.path.join(settings.VCSREPO_ROOT, 'svn'),
+                '--root', os.path.join(settings.VCSREPO_ROOT, 'svn'),
                 '--tunnel']
     self.assertEqual(expected, cmd)
 
@@ -752,13 +778,14 @@ class RequestTestCase(BaseTestCase):
     request.data = {'rights': 'r', 'path': 'path/to/code'}
     cmd = request.get_command()
     expected = ['svnserve',
-                '--root',  os.path.join(settings.VCSREPO_ROOT, 'svn'),
+                '--root', os.path.join(settings.VCSREPO_ROOT, 'svn'),
                 '--tunnel',
                 '--tunnel-user', 'bob']
     self.assertEqual(expected, cmd)
 
   def test_bad_command1(self):
-    self.assertRaises(dispatch.DispatchException, dispatch.get_request, ['rm', '-rf', '/'])
+    self.assertRaises(dispatch.DispatchException, dispatch.get_request,
+                      ['rm', '-rf', '/'])
 
   def test_hg_postprocess(self):
     request = dispatch.get_request(['hg', '--repository', 'bob/code'])
@@ -766,6 +793,7 @@ class RequestTestCase(BaseTestCase):
     result = request.postprocess('hg: cloning from path/to/code')
     expected = 'hg: cloning from bob/code'
     self.assertEqual(expected, result)
+
 
 class PristineTestCase(BaseTestCase):
   '''
@@ -781,6 +809,7 @@ class PristineTestCase(BaseTestCase):
   def test_get_entry_or_404_fail1(self):
     self.assertRaises(Http404, shortcuts.get_entry_or_404,
                       self.repo, 'notexist', 'notexist')
+
 
 class NormalContentsTestCase(BaseTestCase):
   '''
@@ -818,9 +847,11 @@ class NormalContentsTestCase(BaseTestCase):
     setup_git(cwd=wc)
 
     # rev1 setup
-    with open(os.path.join(wc, 'a'), 'w') as fp: pass
+    with open(os.path.join(wc, 'a'), 'w') as fp:
+      pass
     os.makedirs(os.path.join(wc, 'b'))
-    with open(os.path.join(wc, 'b', 'c'), 'w') as fp: pass
+    with open(os.path.join(wc, 'b', 'c'), 'w') as fp:
+      pass
     os.symlink('a', os.path.join(wc, 'd'))
     cmd = [GIT, 'add', '-A', '.']
     subprocess.check_call(cmd, cwd=wc)
@@ -958,7 +989,6 @@ class NormalContentsTestCase(BaseTestCase):
     result = [e.log.rev for e in
               shortcuts.get_directory_contents(self.repo, self.rev1, '/',
                                                resolve_commits=True)]
-    log = self.repo.repo.log(revrange=self.rev1)
     expected = [self.rev1] * 3
     self.assertEqual(result, expected)
 
@@ -982,12 +1012,15 @@ class NormalContentsTestCase(BaseTestCase):
 
   def test_get_directory_contents_subdir3(self):
     '''Using a custom reverse_func'''
-    reverse_func = lambda e: 'http://example.com/repo/' + e.path
+    def reverse_func(e):
+      return 'http://example.com/repo/' + e.path
     result = shortcuts.get_directory_contents(self.repo, self.rev1, '/b',
                                               reverse_func=reverse_func)
     expected = [
-      {'name': '..', 'path': '', 'type': 'd', 'url': 'http://example.com/repo/'},
-      {'name': 'c', 'path': 'b/c', 'type': 'f', 'url': 'http://example.com/repo/b/c'},
+      {'name': '..', 'path': '', 'type': 'd',
+       'url': 'http://example.com/repo/'},
+      {'name': 'c', 'path': 'b/c', 'type': 'f',
+       'url': 'http://example.com/repo/b/c'},
     ]
     self.assertEqual(result, expected)
 

@@ -17,20 +17,20 @@
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 
 from django.http import HttpResponse, HttpResponseNotFound
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.core.exceptions import PermissionDenied
-from . import models, settings
+from . import settings
 from .models import Repo
 import json
 
@@ -38,8 +38,10 @@ try:
   from django.contrib.auth import get_user_model
 except ImportError:
   from django.contrib.auth.models import User
+
   def get_user_model():
     return User
+
 
 class DictEncoder(json.JSONEncoder):
   def default(self, o):
@@ -50,14 +52,17 @@ class DictEncoder(json.JSONEncoder):
 
 dictencoder = DictEncoder()
 
+
 def JsonResponse(data, *args, **kwargs):
   kwargs.setdefault('content_type', 'application/json')
   json = dictencoder.encode(data)
   return HttpResponse(json, *args, **kwargs)
 
+
 def repo_access_data(repo, user):
   rights = settings.VCSREPO_RIGHTS_FUNCTION(repo, user)
-  return { 'rights': rights, 'vcs': repo.vcs, 'path': repo.abspath }
+  return {'rights': rights, 'vcs': repo.vcs, 'path': repo.abspath}
+
 
 def access(request, repo):
   username = request.GET.get('u')
@@ -82,6 +87,7 @@ def access(request, repo):
     return HttpResponseNotFound(message, content_type='text/plain')
   data = repo_access_data(repo, user)
   return JsonResponse(data)
+
 
 @csrf_exempt
 @require_http_methods(["GET", "POST"])

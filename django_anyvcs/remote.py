@@ -17,20 +17,22 @@
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 
 import httplib
 import json
 from urlparse import urlparse
-from anyvcs.common import VCSRepo, PathDoesNotExist, BadFileType, attrdict, \
-                          CommitLogEntry
+from anyvcs.common import (PathDoesNotExist, BadFileType, attrdict,
+                           CommitLogEntry)
+
 
 class BadResponse(Exception):
   def __init__(self, status, reason, content_type, body=None):
@@ -42,6 +44,7 @@ class BadResponse(Exception):
   def __str__(self):
     return 'Server returned %s %s; Content-Type=%s' % (
       self.status, self.reason, self.content_type)
+
 
 class VCSRepo(object):
   def __init__(self, api_url):
@@ -134,16 +137,19 @@ class VCSRepo(object):
   def ancestor(self, rev1, rev2):
     return self._post('ancestor', rev1=rev1, rev2=rev2)
 
+
 class GitRepo(VCSRepo):
   """Mirrors the functionality of anyvcs.git.GitRepo"""
 
   pass
+
 
 class HgRepo(VCSRepo):
   """Mirrors the functionality of anyvcs.hg.HgRepo"""
 
   def bookmarks(self):
     return self._post('bookmarks')
+
 
 class SvnRepo(VCSRepo):
   """Mirrors the functionality of anyvcs.svn.SvnRepo"""

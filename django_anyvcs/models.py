@@ -17,14 +17,15 @@
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 
 from django.db import models
 from django.db.models.signals import post_save, post_delete, m2m_changed
@@ -34,7 +35,6 @@ import anyvcs
 import os
 import re
 import shutil
-import subprocess
 
 VCS_CHOICES = (
   ('git', 'Git'),
@@ -47,8 +47,10 @@ RIGHTS_CHOICES = (
   ('rw', 'Read-Write'),
 )
 
-name_rx = re.compile(r'^(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*/)*(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*)$')
+name_rx = re.compile(r'^(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*/)*'
+                     r'(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*)$')
 hidden_path_rx = re.compile(r'(?:^|/)\.')
+
 
 def makedirs(path):
   try:
@@ -58,16 +60,19 @@ def makedirs(path):
     if e.errno != errno.EEXIST:
       raise
 
+
 def removedirs(path, stop=None):
   while path != stop:
     try:
       os.rmdir(path)
       path = os.path.dirname(path)
-    except OSError, e:
+    except OSError:
       break
+
 
 def post_save_proxy(sender, instance, **kwargs):
   instance.post_save(**kwargs)
+
 
 def post_delete_proxy(sender, instance, **kwargs):
   instance.post_delete(**kwargs)
@@ -75,33 +80,34 @@ def post_delete_proxy(sender, instance, **kwargs):
 
 class Repo(models.Model):
   name = models.CharField(
-    max_length = 100,
-    unique = True,
-    db_index = True,
+    max_length=100,
+    unique=True,
+    db_index=True,
   )
   path = models.CharField(
-    max_length = 100,
-    unique = True,
-    blank = True,
-    help_text = 'Either relative to VCSREPO_ROOT or absolute. Changing this will move the repository on disk.',
+    max_length=100,
+    unique=True,
+    blank=True,
+    help_text='Either relative to VCSREPO_ROOT or absolute. Changing this '
+              'will move the repository on disk.',
   )
   vcs = models.CharField(
-    max_length = 3,
-    default = 'git',
-    choices = VCS_CHOICES,
-    verbose_name = 'Version Control System',
+    max_length=3,
+    default='git',
+    choices=VCS_CHOICES,
+    verbose_name='Version Control System',
   )
   public_read = models.BooleanField(
-    default = False,
-    verbose_name = 'Public Read Access',
+    default=False,
+    verbose_name='Public Read Access',
   )
   created = models.DateTimeField(
-    null = True,
-    auto_now_add = True,
+    null=True,
+    auto_now_add=True,
   )
   last_modified = models.DateTimeField(
-    null = True,
-    auto_now = True,
+    null=True,
+    auto_now=True,
   )
 
   class Meta:
@@ -159,7 +165,7 @@ class Repo(models.Model):
     return self.get_uri('anonymous-ssh')
 
   def get_uri(self, protocol):
-    return self.format_uri(protocol, settings.VCSREPO_URI_CONTEXT) 
+    return self.format_uri(protocol, settings.VCSREPO_URI_CONTEXT)
 
   def format_uri(self, protocol, context):
     context = dict(context)
@@ -212,9 +218,10 @@ class Repo(models.Model):
         # verify we aren't nesting repo paths (e.g. a and a/b)
         # is this a parent of another repo? (is this the a for another a/b)
         if not (settings.VCSREPO_ALLOW_NESTED_PATHS or self.vcs == 'hg'):
-          qs = type(self).objects.filter(path__startswith=self.path+'/')
+          qs = type(self).objects.filter(path__startswith=self.path + '/')
           if qs.count() != 0:
-            msg = 'This an ancestor of another repository which does not support nesting.'
+            msg = ('This an ancestor of another repository which does not'
+                   ' support nesting.')
             err.setdefault('path', []).append(msg)
         # is this a child of another repo? (is this the a/b for another a)
         updirs = []
@@ -226,7 +233,8 @@ class Repo(models.Model):
         if settings.VCSREPO_ALLOW_NESTED_PATHS:
           qs = qs.exclude(vcs='hg')
         if qs.count() != 0:
-          msg = 'This a subdirectory of another repository which does not support nesting.'
+          msg = ('This a subdirectory of another repository which does not '
+                 'support nesting.')
           err.setdefault('path', []).append(msg)
     if not exclude or 'vcs' not in exclude:
       if not filter(lambda x: x[0] == self.vcs, VCS_CHOICES):
@@ -249,7 +257,7 @@ class Repo(models.Model):
         conf.write('anon-access = read\n')
       conf.write('authz-db = authz\n')
     authz_path = os.path.join(self.abspath, 'conf', 'authz')
-    d = { '-': '' }
+    d = {'-': ''}
     with open(authz_path, 'a') as authz:
       authz.seek(0)
       fcntl.lockf(authz, fcntl.LOCK_EX)
@@ -263,7 +271,7 @@ class Repo(models.Model):
       authz.write('\n[/]\n')
       if settings.VCSREPO_USER_ACL_FUNCTION:
         user_acl = settings.VCSREPO_USER_ACL_FUNCTION(self)
-        for u, r in user_acl.iteritems(): 
+        for u, r in user_acl.iteritems():
           authz.write('%s = %s\n' % (u.username, d.get(r, r)))
       if settings.VCSREPO_USE_GROUP_RIGHTS:
         for g, r in group_acl.iteritems():
@@ -280,24 +288,24 @@ if settings.VCSREPO_USE_USER_RIGHTS:
   class UserRights(models.Model):
     repo = models.ForeignKey(
       Repo,
-      db_index = True,
+      db_index=True,
     )
     user = models.ForeignKey(
       settings.VCSREPO_USER_MODEL,
-      db_index = True,
+      db_index=True,
     )
     rights = models.CharField(
-      max_length = 2,
-      default = 'rw',
-      choices = RIGHTS_CHOICES,
+      max_length=2,
+      default='rw',
+      choices=RIGHTS_CHOICES,
     )
     created = models.DateTimeField(
-      null = True,
-      auto_now_add = True,
+      null=True,
+      auto_now_add=True,
     )
     last_modified = models.DateTimeField(
-      null = True,
-      auto_now = True,
+      null=True,
+      auto_now=True,
     )
 
     class Meta:
@@ -324,31 +332,32 @@ if settings.VCSREPO_USE_USER_RIGHTS:
 
   # UserRights signals
   post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=UserRights)
-  post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=UserRights)
+  post_delete.connect(post_delete_proxy, dispatch_uid=__name__,
+                      sender=UserRights)
 
 
 if settings.VCSREPO_USE_GROUP_RIGHTS:
   class GroupRights(models.Model):
     repo = models.ForeignKey(
       Repo,
-      db_index = True,
+      db_index=True,
     )
     group = models.ForeignKey(
       settings.VCSREPO_GROUP_MODEL,
-      db_index = True,
+      db_index=True,
     )
     rights = models.CharField(
-      max_length = 2,
-      default = 'rw',
-      choices = RIGHTS_CHOICES,
+      max_length=2,
+      default='rw',
+      choices=RIGHTS_CHOICES,
     )
     created = models.DateTimeField(
-      null = True,
-      auto_now_add = True,
+      null=True,
+      auto_now_add=True,
     )
     last_modified = models.DateTimeField(
-      null = True,
-      auto_now = True,
+      null=True,
+      auto_now=True,
     )
 
     class Meta:
@@ -375,11 +384,12 @@ if settings.VCSREPO_USE_GROUP_RIGHTS:
 
   # GroupRights signals
   post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=GroupRights)
-  post_delete.connect(post_delete_proxy, dispatch_uid=__name__, sender=GroupRights)
+  post_delete.connect(post_delete_proxy, dispatch_uid=__name__,
+                      sender=GroupRights)
 
   if (
-    settings.VCSREPO_USER_MODEL == 'auth.User'
-    and settings.VCSREPO_GROUP_MODEL == 'auth.Group'
+    settings.VCSREPO_USER_MODEL == 'auth.User' and
+    settings.VCSREPO_GROUP_MODEL == 'auth.Group'
   ):
     from django.contrib.auth.models import User
 
@@ -389,4 +399,5 @@ if settings.VCSREPO_USE_GROUP_RIGHTS:
         for gr in qs.select_related('repo'):
           gr.repo.update_svnserve()
 
-    m2m_changed.connect(group_member_changed, dispatch_uid=__name__, sender=User.groups.through)
+    m2m_changed.connect(group_member_changed, dispatch_uid=__name__,
+                        sender=User.groups.through)

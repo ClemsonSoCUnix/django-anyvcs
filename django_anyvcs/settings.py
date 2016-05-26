@@ -84,3 +84,7 @@ else:
 VCSREPO_URI_CONTEXT.setdefault('anonymous', 'anonymous')
 VCSREPO_URI_CONTEXT.setdefault('user', getpass.getuser())
 VCSREPO_URI_CONTEXT.setdefault('hostname', socket.gethostname())
+
+VCSREPO_RECALCULATE_DISK_SIZE = getattr(settings,
+                                        'VCSREPO_RECALCULATE_DISK_SIZE', True)
+VCSREPO_IGNORE_PRIVATE = getattr(settings, 'VCSREPO_IGNORE_PRIVATE', True)

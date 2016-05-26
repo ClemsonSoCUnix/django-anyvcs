@@ -27,6 +27,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+from django.template.defaultfilters import filesizeformat
 from django.contrib import admin
 from . import settings
 from .models import Repo
@@ -44,24 +45,36 @@ def relocate_path(modeladmin, request, queryset):
     obj.save()
 
 
+def recalculate_disk_size(modeladmin, request, queryset):
+  for obj in queryset:
+    obj.recalculate_disk_size()
+    obj.save()
+
+
 class RepoAdmin(admin.ModelAdmin):
-  list_display = ['__unicode__', 'path', 'vcs']
+  list_display = ['__unicode__', 'path', 'vcs', 'disk_size', 'human_disk_size']
   list_filter = ['vcs']
   search_fields = ['name', 'path']
   actions = [
     update_svnserve,
     relocate_path,
+    recalculate_disk_size,
   ]
 
   def get_readonly_fields(self, request, obj=None):
+    base = ['disk_size', 'human_disk_size']
     if obj:
-      return ['abspath', 'vcs']
+      return base + ['abspath', 'vcs']
     else:
-      return []
+      return base
 
   def abspath(self, instance):
     return instance.abspath
   abspath.short_description = 'Full Path'
+
+  def human_disk_size(self, instance):
+    return filesizeformat(instance.disk_size)
+  human_disk_size.short_description = 'Disk size (human friendly)'
 
 admin.site.register(Repo, RepoAdmin)
 

@@ -27,6 +27,9 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+from . import settings
+from .models import Repo
+
 import logging
 import os
 import sys
@@ -51,9 +54,19 @@ class Request(object):
     self.username = username
     self.repo_name = None
     self.data = {}
+    self.write = True  # True if a write could have occurred
+
+  @property
+  def repo(self):
+    try:
+      return self._repo
+    except AttributeError:
+      self._repo = Repo.objects.get(name=self.repo_name)
+      return self._repo
 
   def add_data(self, data):
     self.data.update(data)
+    self.write = self.write and ('w' in self.data['rights'])
 
   def load_data(self, url, params=None):
     import json
@@ -107,6 +120,8 @@ class GitRequest(Request):
     if repo_name.endswith('.git'):
       repo_name = repo_name[:-4]
     self.repo_name = repo_name
+    if self.argv[0] != 'git-receive-pack':
+      self.write = False
 
   def get_command(self):
     rights = self.data['rights']
@@ -195,7 +210,10 @@ def ssh_dispatch(access_url, username):
       if username:
         params['u'] = username
       request.load_data(url, params)
-    return request.run_command()
+    rc = request.run_command()
+    if request.write and settings.VCSREPO_RECALCULATE_DISK_SIZE:
+      request.repo.recalculate_disk_size()
+    return rc
   except DispatchException as e:
     sys.stderr.write('Error: ' + str(e) + '\n')
     sys.exit(1)

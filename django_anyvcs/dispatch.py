@@ -213,6 +213,7 @@ def ssh_dispatch(access_url, username):
     rc = request.run_command()
     if request.write and settings.VCSREPO_RECALCULATE_DISK_SIZE:
       request.repo.recalculate_disk_size()
+      request.repo.save()
     return rc
   except DispatchException as e:
     sys.stderr.write('Error: ' + str(e) + '\n')

@@ -31,7 +31,7 @@
 def path_function(repo):
   import hashlib
   import os
-  h = hashlib.sha1(repo.name).hexdigest()
+  h = hashlib.sha1(repo.name.encode('ascii')).hexdigest()
   p = [
     repo.vcs,
     h[0:2],

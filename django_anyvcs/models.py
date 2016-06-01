@@ -101,6 +101,9 @@ class Repo(models.Model):
     default=False,
     verbose_name='Public Read Access',
   )
+  disk_size = models.BigIntegerField(
+    default=0,
+  )
   created = models.DateTimeField(
     null=True,
     auto_now_add=True,
@@ -177,6 +180,7 @@ class Repo(models.Model):
     if created:
       makedirs(self.abspath)
       self._repo = anyvcs.create(self.abspath, self.vcs)
+      self.recalculate_disk_size()
     elif self._old_path != self.path:
       makedirs(os.path.dirname(self.abspath))
       old_abspath = os.path.join(settings.VCSREPO_ROOT, self._old_path)
@@ -186,6 +190,8 @@ class Repo(models.Model):
     self._old_path = self.path
     if self.vcs == 'svn':
       self.update_svnserve()
+    if created:  # To save the disk size to the database.
+      self.save()
 
   def post_delete(self, **kwargs):
     try:
@@ -278,6 +284,16 @@ class Repo(models.Model):
           authz.write('@%s = %s\n' % (g.name, d.get(r, r)))
       if self.public_read:
         authz.write('* = r\n')
+
+  def recalculate_disk_size(self):
+    disk_size = 0
+    for dirpath, dirnames, filenames in os.walk(self.abspath, topdown=True):
+      if settings.VCSREPO_IGNORE_PRIVATE:
+        dirnames[:] = [d for d in dirnames if d != '.private']
+      for f in filenames:
+        abspath = os.path.join(dirpath, f)
+        disk_size += os.path.getsize(abspath)
+    self.disk_size = disk_size
 
 # Repo signals
 post_save.connect(post_save_proxy, dispatch_uid=__name__, sender=Repo)

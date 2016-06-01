@@ -683,11 +683,13 @@ class RepoUriTestCase(BaseTestCase):
 class RequestTestCase(BaseTestCase):
 
   def setUp(self):
+    super(RequestTestCase, self).setUp()
     self.original_dispatch_VCSREPO_ROOT = dispatch.VCSREPO_ROOT
     dispatch.VCSREPO_ROOT = settings.VCSREPO_ROOT
 
   def tearDown(self):
     dispatch.VCSREPO_ROOT = self.original_dispatch_VCSREPO_ROOT
+    super(RequestTestCase, self).tearDown()
 
   def test_git_cmd1(self):
     request = dispatch.get_request(['git-upload-pack', 'bob/code'])
@@ -793,6 +795,37 @@ class RequestTestCase(BaseTestCase):
     result = request.postprocess('hg: cloning from path/to/code')
     expected = 'hg: cloning from bob/code'
     self.assertEqual(expected, result)
+
+  def test_git_write1(self):
+    '''Writes can happen for git-receive-pack'''
+    request = dispatch.get_request(['git-receive-pack', 'bob/code'])
+    self.assertTrue(request.write)
+
+  def test_git_write2(self):
+    '''Writes cannot happen for git-upload-pack'''
+    request = dispatch.get_request(['git-upload-pack', 'bob/code'])
+    self.assertFalse(request.write)
+
+  def test_hg_write1(self):
+    '''Writes are assumed to happen if a user has privileges'''
+    request = dispatch.get_request(['hg', '--repository', 'bob/code'])
+    request.add_data({'rights': 'rw', 'path': 'path/to/code'})
+    self.assertTrue(request.write)
+
+  def test_hg_write2(self):
+    '''Writes can't happen if they don't have write privilege'''
+    request = dispatch.get_request(['hg', '--repository', 'bob/code'])
+    request.add_data({'rights': 'r', 'path': 'path/to/code'})
+    self.assertFalse(request.write)
+
+  def test_repo1(self):
+    '''Repo property fetches objects by name appropriately'''
+    repo = Repo(name='bob/code', vcs='hg')
+    repo.full_clean()
+    repo.save()
+    request = dispatch.get_request(['hg', '--repository', 'bob/code'])
+    self.assertIsInstance(request.repo, Repo)
+    self.assertEqual(repo.pk, request.repo.pk)
 
 
 class PristineTestCase(BaseTestCase):
@@ -1083,6 +1116,60 @@ class NormalContentsTestCase(BaseTestCase):
     self.assertEqual('/text.txt', response.context['path'])
     self.assertEqual(self.rev3, response.context['rev'])
     self.assertIsInstance(response.context['contents'], basestring)
+
+
+class DiskSizeTestCase(BaseTestCase):
+  '''
+  Test Repo.disk_size attribute and related functionality.
+  '''
+
+  def setUp(self):
+    super(DiskSizeTestCase, self).setUp()
+    self.repo = Repo(name='repo', vcs='git')
+    self.repo.full_clean()
+    self.repo.save()
+
+  def test_zero(self):
+    '''Starts off at zero'''
+    repo = Repo(name='testrepo')
+    self.assertEqual(0, repo.disk_size)
+
+  def test_created1(self):
+    '''Once on disk the tally is updated'''
+    self.assertGreater(self.repo.disk_size, 0)
+
+  def test_created2(self):
+    '''The value is also saved to the database'''
+    repo = Repo.objects.get(pk=self.repo.pk)
+    self.assertGreater(repo.disk_size, 0)
+
+  def test_private_path1(self):
+    '''Ignores .private directory if configured'''
+    ignore = settings.VCSREPO_IGNORE_PRIVATE
+    settings.VCSREPO_IGNORE_PRIVATE = True
+    try:
+      disk_size = self.repo.disk_size
+      path = os.path.join(self.repo.repo.private_path, 'test-file')
+      with open(path, 'w') as fp:
+        fp.write('X' * 40)
+      self.repo.recalculate_disk_size()
+      self.assertEqual(disk_size, self.repo.disk_size)
+    finally:
+      settings.VCSREPO_IGNORE_PRIVATE = ignore
+
+  def test_private_path2(self):
+    '''Considers .private directory if configured'''
+    ignore = settings.VCSREPO_IGNORE_PRIVATE
+    settings.VCSREPO_IGNORE_PRIVATE = False
+    try:
+      disk_size = self.repo.disk_size
+      path = os.path.join(self.repo.repo.private_path, 'test-file')
+      with open(path, 'w') as fp:
+        fp.write('X' * 40)
+      self.repo.recalculate_disk_size()
+      self.assertEqual(40 + disk_size, self.repo.disk_size)
+    finally:
+      settings.VCSREPO_IGNORE_PRIVATE = ignore
 
 
 def setup_git(**kw):

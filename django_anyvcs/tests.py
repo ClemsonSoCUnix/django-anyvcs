@@ -67,6 +67,12 @@ URI_CONTEXT = {
   'hostname': 'hostname',
 }
 
+# Python 3 compatibility hack.
+try:
+  basestring
+except NameError:
+  basestring = str
+
 
 class BaseTestCase(TestCase):
   def setUp(self):
@@ -308,6 +314,13 @@ class LookupTestCase(BaseTestCase):
     Group.objects.all().delete()
     super(LookupTestCase, cls).tearDownClass()
 
+  def _json(self, response, encoding='ascii'):
+    self.assertEqual(response.status_code, 200)
+    self.assertIn('Content-Type', response)
+    self.assertEqual(response['Content-Type'], 'application/json')
+    content = response.content.decode(encoding)
+    return json.loads(content)
+
   def test_public_read_anonymous(self):
     vcs = 'git'
     for public_read, public_rights in ((False, '-'), (True, 'r')):
@@ -320,10 +333,7 @@ class LookupTestCase(BaseTestCase):
       client = Client()
       url = reverse('django_anyvcs.views.access', args=(repo.name,))
       response = client.get(url)
-      self.assertEqual(response.status_code, 200)
-      self.assertIn('Content-Type', response)
-      self.assertEqual(response['Content-Type'], 'application/json')
-      document = json.loads(response.content)
+      document = self._json(response)
       self.assertIn('path', document)
       self.assertEqual(document['path'],
                        os.path.join(settings.VCSREPO_ROOT, 'repo'))
@@ -345,10 +355,7 @@ class LookupTestCase(BaseTestCase):
       client = Client()
       url = reverse('django_anyvcs.views.access', args=(repo.name,))
       response = client.get(url, {'u': self.user1.username})
-      self.assertEqual(response.status_code, 200)
-      self.assertIn('Content-Type', response)
-      self.assertEqual(response['Content-Type'], 'application/json')
-      document = json.loads(response.content)
+      document = self._json(response)
       self.assertIn('path', document)
       self.assertEqual(document['path'],
                        os.path.join(settings.VCSREPO_ROOT, 'repo'))
@@ -381,10 +388,7 @@ class LookupTestCase(BaseTestCase):
         client = Client()
         url = reverse('django_anyvcs.views.access', args=(repo.name,))
         response = client.get(url, {'u': self.user1.username})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Content-Type', response)
-        self.assertEqual(response['Content-Type'], 'application/json')
-        document = json.loads(response.content)
+        document = self._json(response)
         self.assertIn('path', document)
         self.assertEqual(document['path'],
                          os.path.join(settings.VCSREPO_ROOT, 'repo'))
@@ -417,10 +421,7 @@ class LookupTestCase(BaseTestCase):
         client = Client()
         url = reverse('django_anyvcs.views.access', args=(repo.name,))
         response = client.get(url, {'u': self.user1.username})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Content-Type', response)
-        self.assertEqual(response['Content-Type'], 'application/json')
-        document = json.loads(response.content)
+        document = self._json(response)
         self.assertIn('path', document)
         self.assertEqual(document['path'],
                          os.path.join(settings.VCSREPO_ROOT, 'repo'))
@@ -457,10 +458,7 @@ class LookupTestCase(BaseTestCase):
         client = Client()
         url = reverse('django_anyvcs.views.access', args=(repo.name,))
         response = client.get(url, {'u': self.user1.username})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Content-Type', response)
-        self.assertEqual(response['Content-Type'], 'application/json')
-        document = json.loads(response.content)
+        document = self._json(response)
         self.assertIn('path', document)
         self.assertEqual(document['path'],
                          os.path.join(settings.VCSREPO_ROOT, 'repo'))
@@ -487,10 +485,7 @@ class LookupTestCase(BaseTestCase):
         client = Client()
         url = reverse('django_anyvcs.views.access', args=(repo.name,))
         response = client.get(url, {'u': self.user1.username})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Content-Type', response)
-        self.assertEqual(response['Content-Type'], 'application/json')
-        document = json.loads(response.content)
+        document = self._json(response)
         self.assertIn('rights', document)
         self.assertEqual(document['rights'], rights)
     finally:
@@ -499,7 +494,10 @@ class LookupTestCase(BaseTestCase):
 
 class SvnAuthzTestCase(BaseTestCase):
   def setUp(self):
-    from ConfigParser import RawConfigParser
+    try:
+      from ConfigParser import RawConfigParser
+    except ImportError:
+      from configparser import RawConfigParser
     super(SvnAuthzTestCase, self).setUp()
     repo = Repo(name='a', vcs='svn')
     repo.full_clean()
@@ -900,10 +898,10 @@ class NormalContentsTestCase(BaseTestCase):
     # rev3 setup
     with open(os.path.join(wc, 'text.txt'), 'w') as fp:
       fp.write('hello\n')
-    with open(os.path.join(wc, 'encoding.txt'), 'w') as fp:
+    with open(os.path.join(wc, 'encoding.txt'), 'wb') as fp:
       fp.write(u'P\xe9rez\n'.encode('latin1'))
     with gzip.open(os.path.join(wc, 'binary.gz'), 'wb') as fp:
-      fp.write('hello\n')
+      fp.write('hello\n'.encode('ascii'))
     cmd = [GIT, 'add', '-A', '.']
     subprocess.check_call(cmd, cwd=wc)
     cmd = [GIT, 'commit', '-q', '-m', 'text and binary file']
@@ -1107,7 +1105,8 @@ class NormalContentsTestCase(BaseTestCase):
     response = shortcuts.render_file('raw.html',
                                      self.repo, self.rev3, '/text.txt',
                                      textfilter=textfilter)
-    self.assertEqual('test - hello\n\n', response.content)
+    content = response.content.decode('utf8')
+    self.assertEqual('test - hello\n\n', content)
 
   def test_render_file8(self):
     '''Test the context'''

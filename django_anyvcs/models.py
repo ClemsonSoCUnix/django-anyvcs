@@ -243,7 +243,7 @@ class Repo(models.Model):
                  'support nesting.')
           err.setdefault('path', []).append(msg)
     if not exclude or 'vcs' not in exclude:
-      if not filter(lambda x: x[0] == self.vcs, VCS_CHOICES):
+      if not list(filter(lambda x: x[0] == self.vcs, VCS_CHOICES)):
         msg = 'Not a valid VCS type'
         err.setdefault('vcs', []).append(msg)
     if err:
@@ -277,10 +277,10 @@ class Repo(models.Model):
       authz.write('\n[/]\n')
       if settings.VCSREPO_USER_ACL_FUNCTION:
         user_acl = settings.VCSREPO_USER_ACL_FUNCTION(self)
-        for u, r in user_acl.iteritems():
+        for u, r in user_acl.items():
           authz.write('%s = %s\n' % (u.username, d.get(r, r)))
       if settings.VCSREPO_USE_GROUP_RIGHTS:
-        for g, r in group_acl.iteritems():
+        for g, r in group_acl.items():
           authz.write('@%s = %s\n' % (g.name, d.get(r, r)))
       if self.public_read:
         authz.write('* = r\n')

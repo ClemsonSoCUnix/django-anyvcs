@@ -144,9 +144,28 @@ class FixtureTestCase(BaseTestCase):
 
 class CreateRepoTestCase(BaseTestCase):
   def test_invalid_names(self):
+    fail = []
     for name in ('$', '/', 'a//b'):
       repo = Repo(name=name, path='repo', vcs='git')
-      self.assertRaises(ValidationError, repo.full_clean)
+      try:
+        repo.full_clean()
+        fail.append(name)
+      except ValidationError:
+        pass
+    if fail:
+      self.fail('%r marked valid' % fail)
+
+  def test_valid_names(self):
+    fail = []
+    for name in ('test', 'test@example.com', 'foo@example.com/bar',
+                 'foo@example.com/bar@example.com'):
+      repo = Repo(name=name, path='repo', vcs='git')
+      try:
+        repo.full_clean()
+      except ValidationError:
+        fail.append(name)
+    if fail:
+      self.fail('%r marked invalid' % fail)
 
   def test_invalid_paths(self):
     for path in ('.', '..', 'a/..', '../a', '.a', '.a/a', 'a/.a'):

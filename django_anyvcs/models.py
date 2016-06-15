@@ -47,8 +47,8 @@ RIGHTS_CHOICES = (
   ('rw', 'Read-Write'),
 )
 
-name_rx = re.compile(r'^(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*/)*'
-                     r'(?:[a-zA-Z0-9][a-zA-Z0-9_.+-]*)$')
+name_rx = re.compile(r'^(?:[a-zA-Z0-9][a-zA-Z0-9@_.+-]*/)*'
+                     r'(?:[a-zA-Z0-9][a-zA-Z0-9@_.+-]*)$')
 hidden_path_rx = re.compile(r'(?:^|/)\.')
 
 

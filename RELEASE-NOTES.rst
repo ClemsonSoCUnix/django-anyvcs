@@ -2,6 +2,20 @@
 Release Notes for django-anyvcs
 ===============================
 
+2.5.0 (2016-05-15)
+------------------
+
+Migration label: 0002
+South migration label: 0005
+
+* Support for Python 3.3 and 3.4 (issue #18).
+* Repo objects now have a ``disk_size`` attribute, which can be recalculated by
+  a new method ``recalculate_disk_size()``. Disk size can be automatically be
+  updated when the repository is accessed using ``django-anyvcs-ssh``
+  (issue #16).
+* Repo.name attribute can include ampersands (issue #4).
+* Code formatting cleanup.
+
 2.4.0 (2015-09-23)
 ------------------
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2015, Clemson University
+# Copyright (c) 2014-2016, Clemson University
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -17,14 +17,15 @@
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 
 from anyvcs.common import PathDoesNotExist, attrdict
 from django.http import Http404, HttpResponse
@@ -34,6 +35,7 @@ from django.utils.encoding import force_text
 import mimetypes
 import os
 
+
 def get_entry_or_404(repo, rev, path, **kw):
   '''
   Get entry via `repo.repo.ls()` or raise Http404.
@@ -41,12 +43,13 @@ def get_entry_or_404(repo, rev, path, **kw):
   Keyword arguments are passed along to the call to `ls()`.
 
   '''
-  if not rev in repo.repo:
+  if rev not in repo.repo:
     raise Http404
   try:
     return repo.repo.ls(rev, path, directory=True, **kw)[0]
   except PathDoesNotExist:
     raise Http404
+
 
 def get_directory_contents(repo, rev, path, key=None, reverse=False,
                            parents=True, reverse_func=None,
@@ -73,7 +76,7 @@ def get_directory_contents(repo, rev, path, key=None, reverse=False,
 
   # Force the report commit flag if not specified and resolve_commits is True.
   report = tuple(kw.get('report', ()))
-  if resolve_commits and not 'commit' in report:
+  if resolve_commits and 'commit' not in report:
     report += ('commit',)
     kw['report'] = report
 
@@ -102,6 +105,7 @@ def get_directory_contents(repo, rev, path, key=None, reverse=False,
     entry.url = reverse_func(entry)
     contents.insert(0, entry)
   return contents
+
 
 def render_file(template, repo, rev, path, file_mimetype=None,
                 encoding='utf-8', extra_context=None, textfilter=None,
@@ -165,11 +169,13 @@ def render_file(template, repo, rev, path, file_mimetype=None,
 
   return render_to_response(template, context, **kw)
 
+
 def _normpath(path):
   path = os.path.normpath(path)
   if path in ('.', '/'):
     return '/'
   return path
+
 
 def _pardir(path, levels=1):
   args = ['..'] * levels

@@ -20,6 +20,8 @@ The following table maps django-anyvcs version to migration labels:
 +---------+---------------+-------+---------------------------------------+
 | 2.4     | django_anyvcs | 0001  | Start using Django migrations         |
 +---------+---------------+-------+---------------------------------------+
+| 2.5     | django_anyvcs | 0002  |                                       |
++---------+---------------+-------+---------------------------------------+
 
 To upgrade, install the new version of django-anyvcs and then migrate your
 project to its corresponding label from the table above using the following

@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2015, Clemson University
+# Copyright (c) 2014-2016, Clemson University
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -17,14 +17,18 @@
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+from . import settings
+from .models import Repo
 
 import logging
 import os
@@ -37,8 +41,10 @@ GIT = os.getenv('GIT', 'git')
 HG = os.getenv('HG', 'hg')
 SVNSERVE = os.getenv('SVNSERVE', 'svnserve')
 
+
 class DispatchException(Exception):
   pass
+
 
 class Request(object):
   postprocess = None
@@ -48,9 +54,19 @@ class Request(object):
     self.username = username
     self.repo_name = None
     self.data = {}
+    self.write = True  # True if a write could have occurred
+
+  @property
+  def repo(self):
+    try:
+      return self._repo
+    except AttributeError:
+      self._repo = Repo.objects.get(name=self.repo_name)
+      return self._repo
 
   def add_data(self, data):
     self.data.update(data)
+    self.write = self.write and ('w' in self.data['rights'])
 
   def load_data(self, url, params=None):
     import json
@@ -88,6 +104,7 @@ class Request(object):
     sys.stderr.write(stderr)
     return p.returncode
 
+
 class GitRequest(Request):
   vcs = 'git'
 
@@ -103,6 +120,8 @@ class GitRequest(Request):
     if repo_name.endswith('.git'):
       repo_name = repo_name[:-4]
     self.repo_name = repo_name
+    if self.argv[0] != 'git-receive-pack':
+      self.write = False
 
   def get_command(self):
     rights = self.data['rights']
@@ -115,14 +134,15 @@ class GitRequest(Request):
     cmd = [GIT, 'shell', '-c', "%s '%s'" % (self.argv[0], path)]
     return cmd
 
+
 class HgRequest(Request):
   vcs = 'hg'
 
   def __init__(self, argv, username):
     super(HgRequest, self).__init__(argv, username)
-    for i in range(1, len(argv)-1):
+    for i in range(1, len(argv) - 1):
       if argv[i] in ('-R', '--repository'):
-        repo_name = argv[i+1]
+        repo_name = argv[i + 1]
         break
     else:
       raise DispatchException('Repository not specified')
@@ -135,16 +155,16 @@ class HgRequest(Request):
       raise DispatchException('Permission denied')
     cmd = [HG, '-R', path, 'serve', '--stdio']
     if 'w' not in rights:
+      hook = 'echo "Error: Permission denied (read-only)" >&2; false'
       cmd += [
-        '--config',
-        'hooks.prechangegroup.readonly=echo "Error: Permission denied (read-only)" >&2; false',
-        '--config',
-        'hooks.prepushkey.readonly=echo "Error: Permission denied (read-only)" >&2; false',
+        '--config', 'hooks.prechangegroup.readonly=' + hook,
+        '--config', 'hooks.prepushkey.readonly=' + hook,
       ]
     return cmd
 
   def postprocess(self, text):
     return text.replace(self.data['path'], self.repo_name)
+
 
 class SvnRequest(Request):
   vcs = 'svn'
@@ -168,6 +188,7 @@ def parse_command(cmd):
     raise DispatchException('Command not specified')
   return argv
 
+
 def get_request(argv, username=None):
   if argv[0] in ('git-receive-pack', 'git-upload-pack', 'git-upload-archive'):
     return GitRequest(argv, username)
@@ -176,6 +197,7 @@ def get_request(argv, username=None):
   if argv[0] == 'svnserve':
     return SvnRequest(argv, username)
   raise DispatchException('Command not allowed', argv[0])
+
 
 def ssh_dispatch(access_url, username):
   cmd = os.getenv('SSH_ORIGINAL_COMMAND', '')
@@ -188,7 +210,11 @@ def ssh_dispatch(access_url, username):
       if username:
         params['u'] = username
       request.load_data(url, params)
-    return request.run_command()
+    rc = request.run_command()
+    if request.write and settings.VCSREPO_RECALCULATE_DISK_SIZE:
+      request.repo.recalculate_disk_size()
+      request.repo.save()
+    return rc
   except DispatchException as e:
     sys.stderr.write('Error: ' + str(e) + '\n')
     sys.exit(1)
@@ -197,6 +223,7 @@ def ssh_dispatch(access_url, username):
     logger.error(message, exc_info=True)
     sys.stderr.write('%s\n' % message)
     sys.exit(1)
+
 
 def main():
   argc = len(sys.argv)
